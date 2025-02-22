@@ -85,7 +85,7 @@ impl Interpreter for ShowCreateTableInterpreter {
 
         let settings = ShowCreateQuerySettings {
             sql_dialect: settings.get_sql_dialect()?,
-            quoted_ident_case_sensitive: settings.get_quoted_ident_case_sensitive()?,
+            quoted_ident_case_sensitive: settings.get_quoted_ident_case_sensitive()? || self.plan.with_quoted_ident,
             hide_options_in_show_create_table: settings
                 .get_hide_options_in_show_create_table()
                 .unwrap_or(false),
