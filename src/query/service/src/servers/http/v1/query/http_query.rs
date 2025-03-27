@@ -67,6 +67,7 @@ use crate::servers::http::v1::query::ResponseData;
 use crate::servers::http::v1::query::Wait;
 use crate::servers::http::v1::ClientSessionManager;
 use crate::servers::http::v1::HttpQueryManager;
+use crate::servers::http::v1::query::string_block::BlocksSerializer;
 use crate::servers::http::v1::QueryResponse;
 use crate::servers::http::v1::QueryStats;
 use crate::sessions::QueryAffect;
@@ -109,7 +110,7 @@ impl HttpQueryRequest {
             stats: QueryStats::default(),
             state: ExecuteStateKind::Failed,
             affect: None,
-            data: vec![],
+            data: Arc::new(BlocksSerializer::empty()),
             schema: vec![],
             session_id: None,
             warnings: vec![],

@@ -13,19 +13,20 @@
 // limitations under the License.
 
 use std::collections::VecDeque;
+use std::ops::Range;
 use std::sync::Arc;
 use std::time::Instant;
-
+use itertools::Itertools;
 use databend_common_base::base::tokio;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
-use databend_common_expression::DataBlock;
+use databend_common_expression::{BlockEntry, Column, DataBlock, ScalarRef};
 use databend_common_io::prelude::FormatSettings;
 use log::debug;
 use log::info;
 use parking_lot::RwLock;
 
-use super::string_block::block_to_strings;
+use super::string_block::{block_to_strings, BlocksSerializer};
 use super::string_block::StringBlock;
 use crate::servers::http::v1::query::sized_spsc::SizedChannelReceiver;
 
@@ -37,7 +38,7 @@ pub enum Wait {
 
 #[derive(Clone)]
 pub struct Page {
-    pub data: StringBlock,
+    pub data: Arc<BlocksSerializer>,
 }
 
 pub struct ResponseData {
@@ -52,7 +53,7 @@ pub struct PageManager {
     end: bool,
     block_end: bool,
     last_page: Option<Page>,
-    row_buffer: VecDeque<Vec<Option<String>>>,
+    row_buffer: Option<Vec<Column>>,
     block_receiver: SizedChannelReceiver<DataBlock>,
     format_settings: Arc<RwLock<Option<FormatSettings>>>,
 }
@@ -88,11 +89,12 @@ impl PageManager {
     pub async fn get_a_page(&mut self, page_no: usize, tp: &Wait) -> Result<Page> {
         let next_no = self.total_pages;
         if page_no == next_no {
+            let mut serializer = BlocksSerializer::new(self.format_settings.read().clone());
             if !self.end {
-                let (block, end) = self.collect_new_page(tp).await?;
-                let num_row = block.num_rows();
+                let end = self.collect_new_page(&mut serializer, tp).await?;
+                let num_row = serializer.num_rows();
                 self.total_rows += num_row;
-                let page = Page { data: block };
+                let page = Page { data: Arc::new(serializer) };
                 if num_row > 0 {
                     self.total_pages += 1;
                     self.last_page = Some(page.clone());
@@ -104,7 +106,7 @@ impl PageManager {
                 // but the response may be lost and client will retry,
                 // we simply return an empty page.
                 let page = Page {
-                    data: StringBlock::default(),
+                    data: Arc::new(serializer),
                 };
                 Ok(page)
             }
@@ -124,55 +126,59 @@ impl PageManager {
 
     fn append_block(
         &mut self,
-        res: &mut Vec<Vec<Option<String>>>,
+        serializer: &mut BlocksSerializer,
         block: DataBlock,
         remain_rows: &mut usize,
         remain_size: &mut usize,
     ) -> Result<()> {
-        let format_settings = {
+        if !serializer.has_format() {
             let guard = self.format_settings.read();
-            guard.as_ref().unwrap().clone()
-        };
-        let rows = block_to_strings(&block, &format_settings)?;
+            serializer.set_format(guard.as_ref().unwrap().clone());
+        }
+
+        let columns = block.columns().iter()
+            .map(|entry| {
+                entry.to_column(block.num_rows())
+            })
+            .collect_vec();
+
         let mut i = 0;
-        while *remain_rows > 0 && *remain_size > 0 && i < rows.len() {
-            let size = row_size(&rows[i]);
+        while *remain_rows > 0 && *remain_size > 0 && i < block.num_rows() {
+            let size = row_size(&columns, i);
             if *remain_size > size {
                 *remain_size -= size;
                 *remain_rows -= 1;
                 i += 1;
             } else {
                 *remain_size = 0;
-                if res.is_empty() && i == 0 {
+                if serializer.is_empty() && i == 0 {
                     i += 1
                 }
             }
         }
-        res.extend_from_slice(&rows[..i]);
-        self.row_buffer = rows[i..].iter().cloned().collect();
+        if i == block.num_rows() {
+            serializer.append(columns, block.num_rows());
+            self.row_buffer = None;
+        } else {
+            let fn_slice = |columns: &[Column], range: Range<usize>| {
+                columns.iter()
+                    .map(|column| column.slice(range.clone()))
+                    .collect_vec()
+            };
+
+            serializer.append(fn_slice(&columns, 0..i), i);
+            self.row_buffer = Some(fn_slice(&columns, i..block.num_rows()));
+        }
         Ok(())
     }
 
     #[async_backtrace::framed]
-    async fn collect_new_page(&mut self, tp: &Wait) -> Result<(StringBlock, bool)> {
-        let mut res: Vec<Vec<Option<String>>> = Vec::with_capacity(self.max_rows_per_page);
+    async fn collect_new_page(&mut self, serializer: &mut BlocksSerializer, tp: &Wait) -> Result<bool> {
         let mut remain_size = 10 * 1024 * 1024;
         let mut remain_rows = self.max_rows_per_page;
         while remain_rows > 0 && remain_size > 0 {
-            if let Some(row) = self.row_buffer.pop_front() {
-                let size = row_size(&row);
-                if remain_size > size {
-                    res.push(row);
-                    remain_size -= size;
-                    remain_rows -= 1;
-                } else {
-                    if res.is_empty() {
-                        res.push(row);
-                    } else {
-                        self.row_buffer.push_front(row);
-                    }
-                    remain_size = 0;
-                }
+            if let Some(block) = self.row_buffer.take() {
+                self.append_block(serializer, DataBlock::new_from_columns(block), &mut remain_rows, &mut remain_size)?;
             } else {
                 break;
             }
@@ -182,7 +188,7 @@ impl PageManager {
             match tp {
                 Wait::Async => match self.block_receiver.try_recv() {
                     Some(block) => {
-                        self.append_block(&mut res, block, &mut remain_rows, &mut remain_size)?
+                        self.append_block(serializer, block, &mut remain_rows, &mut remain_size)?
                     }
                     None => break,
                 },
@@ -196,7 +202,7 @@ impl PageManager {
                     match tokio::time::timeout(d, self.block_receiver.recv()).await {
                         Ok(Some(block)) => {
                             debug!("http query got new block with {} rows", block.num_rows());
-                            self.append_block(&mut res, block, &mut remain_rows, &mut remain_size)?;
+                            self.append_block(serializer, block, &mut remain_rows, &mut remain_size)?
                         }
                         Ok(None) => {
                             info!("http query reach end of blocks");
@@ -211,33 +217,32 @@ impl PageManager {
             }
         }
 
-        let block = StringBlock { data: res };
-
         // try to report 'no more data' earlier to client to avoid unnecessary http call
         if !self.block_end {
             self.block_end = self.block_receiver.is_empty();
         }
-        let end = self.block_end && self.row_buffer.is_empty();
-        Ok((block, end))
+        Ok(self.block_end && self.row_buffer.is_none())
     }
 
     #[async_backtrace::framed]
     pub async fn detach(&mut self) {
         self.block_receiver.close();
         self.last_page = None;
-        self.row_buffer.clear()
+        self.row_buffer = None;
     }
 }
 
-fn row_size(row: &[Option<String>]) -> usize {
-    let n = row.len();
+fn row_size(columns: &[Column], row_index: usize) -> usize {
     // ["1","2",null],
-    row.iter()
-        .map(|s| match s {
-            Some(s) => s.len(),
-            None => 2,
+    columns
+        .iter()
+        .map(|column| match column.index(row_index) {
+            Some(s) => {
+                s.memory_size() + 2
+            }
+            None => 2
         })
         .sum::<usize>()
-        + n * 3
+        + columns.len() * 3
         + 2
 }

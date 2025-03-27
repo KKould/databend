@@ -12,11 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::cell::RefCell;
+use std::ops::DerefMut;
+use std::sync::Arc;
+use serde::ser::SerializeSeq;
 use databend_common_exception::Result;
 use databend_common_expression::Column;
 use databend_common_expression::DataBlock;
 use databend_common_formats::field_encoder::FieldEncoderValues;
 use databend_common_io::prelude::FormatSettings;
+
+pub type BlocksSerializerRef = Arc<BlocksSerializer>;
 
 #[derive(Debug, Clone, Default)]
 pub struct StringBlock {
@@ -31,6 +37,111 @@ fn data_is_null(column: &Column, row_index: usize) -> bool {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct BlocksSerializer {
+    // Vec<Column> for a Block
+    columns: Vec<(Vec<Column>, usize)>,
+    pub(crate) format: Option<FormatSettings>,
+}
+
+impl BlocksSerializer {
+    pub fn empty() -> Self {
+        Self {
+            columns: vec![],
+            format: None,
+        }
+    }
+
+    pub fn new(format: Option<FormatSettings>) -> Self {
+        Self {
+            columns: vec![],
+            format,
+        }
+    }
+
+    pub fn has_format(&self) -> bool {
+        self.format.is_some()
+    }
+
+    pub fn set_format(&mut self, format: FormatSettings) {
+        self.format = Some(format);
+    }
+
+    pub fn append(&mut self, columns: Vec<Column>, num_rows: usize) {
+        self.columns.push((columns, num_rows));
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.columns.is_empty()
+    }
+
+    pub fn num_rows(&self) -> usize {
+        self.columns
+            .iter()
+            .map(|(_, num_rows)| *num_rows)
+            .sum()
+    }
+}
+
+impl serde::Serialize for BlocksSerializer {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let mut serialize_seq = serializer.serialize_seq(Some(self.num_rows()))?;
+        if let Some(format) = &self.format {
+            let mut buf = RefCell::new(Vec::new());
+            let encoder = FieldEncoderValues::create_for_http_handler(
+                format.jiff_timezone.clone(),
+                format.timezone,
+                format.geometry_format,
+            );
+            for (columns, num_rows) in self.columns.iter() {
+                for i in 0..*num_rows {
+                    serialize_seq.serialize_element(&RowSerializer {
+                        format,
+                        data_block: columns,
+                        encodeer: &encoder,
+                        buf: &mut buf,
+                        row_index: i,
+                    })?
+                }
+            }
+        }
+        serialize_seq.end()
+    }
+}
+
+struct RowSerializer<'a> {
+    format: &'a FormatSettings,
+    data_block: &'a [Column],
+    encodeer: &'a FieldEncoderValues,
+    buf: &'a RefCell<Vec<u8>>,
+    row_index: usize,
+}
+
+impl<'a> serde::Serialize for RowSerializer<'a> {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where S: serde::Serializer {
+        let mut serialize_seq = serializer.serialize_seq(Some(self.data_block.len()))?;
+
+        for column in self.data_block.iter() {
+            if !self.format.format_null_as_str && data_is_null(column, self.row_index) {
+                serialize_seq.serialize_element(&None::<String>)?;
+                continue;
+            }
+            let string = self.encodeer
+                .try_direct_as_string(&column, self.row_index, false)
+                .unwrap_or_else(|| {
+                    let mut buf = self.buf.borrow_mut();
+                    buf.clear();
+                    self.encodeer.write_field(column, self.row_index, buf.deref_mut(), false);
+                    String::from_utf8_lossy(buf.deref_mut()).into_owned()
+                });
+            serialize_seq.serialize_element(&Some(string))?;
+        }
+        serialize_seq.end()
+    }
+}
+
 pub fn block_to_strings(
     block: &DataBlock,
     format: &FormatSettings,
@@ -40,10 +151,9 @@ pub fn block_to_strings(
     }
     let rows_size = block.num_rows();
     let columns: Vec<Column> = block
-        .convert_to_full()
         .columns()
         .iter()
-        .map(|column| column.value.clone().into_column().unwrap())
+        .map(|column| column.to_column(block.num_rows()))
         .collect();
 
     let mut res = Vec::new();
@@ -61,8 +171,13 @@ pub fn block_to_strings(
                 continue;
             }
             buf.clear();
-            encoder.write_field(column, row_index, &mut buf, false);
-            row.push(Some(String::from_utf8_lossy(&buf).into_owned()));
+            let string = encoder
+                .try_direct_as_string(&column, row_index, false)
+                .unwrap_or_else(|| {
+                    encoder.write_field(column, row_index, &mut buf, false);
+                    String::from_utf8_lossy(&buf).into_owned()
+                });
+            row.push(Some(string));
         }
         res.push(row)
     }
