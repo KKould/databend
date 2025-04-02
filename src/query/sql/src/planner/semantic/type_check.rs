@@ -4982,7 +4982,6 @@ impl<'a> TypeChecker<'a> {
             .get(&base_column.table_index)
         {
             let mut name = String::new();
-            name.push_str(&base_column.column_name);
             for path in &keypaths.paths {
                 name.push('[');
                 match path {
@@ -4998,8 +4997,9 @@ impl<'a> TypeChecker<'a> {
                 name.push(']');
             }
 
-            let virtual_type = virtual_column_name_map.get(&name);
-            let is_created = virtual_type.is_some();
+            let Some((table_data_type, column_id)) = virtual_column_name_map.get(&name) else {
+                return Ok(None);
+            };
 
             let mut index = 0;
             // Check for duplicate virtual columns
@@ -5014,20 +5014,8 @@ impl<'a> TypeChecker<'a> {
                 }
             }
 
-            let table_data_type = if let Some(virtual_type) = virtual_type {
-                virtual_type.wrap_nullable()
-            } else {
-                TableDataType::Nullable(Box::new(TableDataType::Variant))
-            };
-
             if index == 0 {
-                let column_id = self
-                    .bind_context
-                    .virtual_column_context
-                    .next_column_ids
-                    .get(&base_column.table_index)
-                    .unwrap();
-
+                let is_created = true;
                 let keypaths_str = format!("{}", keypaths);
                 let keypaths_value = Scalar::String(keypaths_str);
 
@@ -5040,15 +5028,6 @@ impl<'a> TypeChecker<'a> {
                     None,
                     is_created,
                 );
-
-                // Increments the column id of the virtual column.
-                let column_id = self
-                    .bind_context
-                    .virtual_column_context
-                    .next_column_ids
-                    .get_mut(&base_column.table_index)
-                    .unwrap();
-                *column_id += 1;
             }
 
             if let Some(indices) = self
@@ -5065,7 +5044,7 @@ impl<'a> TypeChecker<'a> {
                     .insert(base_column.table_index, vec![index]);
             }
 
-            let data_type = DataType::from(&table_data_type);
+            let data_type = DataType::from(table_data_type);
             let column_binding = ColumnBindingBuilder::new(
                 name,
                 index,
