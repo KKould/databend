@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use databend_common_ast::ast::Identifier;
@@ -31,8 +30,8 @@ use databend_common_catalog::table_with_options::get_with_opt_consume;
 use databend_common_catalog::table_with_options::get_with_opt_max_batch_size;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
-use databend_common_expression::types::NumberDataType;
-use databend_common_expression::TableDataType;
+use databend_common_expression::types::{DataType, NumberDataType};
+use databend_common_expression::{Scalar, TableDataType};
 use databend_common_expression::VariantDataType;
 use databend_common_storages_view::view_table::QUERY;
 use databend_storages_common_table_meta::table::get_change_type;
@@ -40,7 +39,7 @@ use databend_storages_common_table_meta::table::get_change_type;
 use crate::binder::util::TableIdentifier;
 use crate::binder::Binder;
 use crate::optimizer::ir::SExpr;
-use crate::BindContext;
+use crate::{BindContext, ColumnBindingBuilder, ColumnEntry, Visibility};
 use crate::IndexType;
 
 impl Binder {
@@ -289,6 +288,8 @@ impl Binder {
                     cte_suffix_name,
                 );
 
+                self.bind_table_virtual_column(bind_context, table_meta.clone(), table_index)?;
+
                 let (s_expr, mut bind_context) = self.bind_base_table(
                     bind_context,
                     database.as_str(),
@@ -299,8 +300,6 @@ impl Binder {
                 if let Some(alias) = alias {
                     bind_context.apply_table_alias(alias, &self.name_resolution_ctx)?;
                 }
-
-                self.bind_table_virtual_column(&mut bind_context, table_meta.clone(), table_index)?;
 
                 Ok((s_expr, bind_context))
             }
@@ -359,13 +358,32 @@ impl Binder {
                 .virtual_column_context
                 .table_indices
                 .insert(table_index);
-            let mut virtual_column_name_map = HashMap::with_capacity(virtual_schema.fields.len());
             for virtual_field in virtual_schema.fields.iter() {
-                let name = virtual_field.name.clone();
+                let base_column = {
+                    let guard = self.metadata.read();
+                    let ColumnEntry::BaseTableColumn(base_column) = guard.column(virtual_field.source_column_id as IndexType) else {
+                        continue
+                    };
+                    base_column.clone()
+                };
+
+                let name = format!("{}{}", base_column.column_name, virtual_field.name);
+                let mut index = 0;
+                // Check for duplicate virtual columns
+                for table_column in self
+                    .metadata
+                    .read()
+                    .virtual_columns_by_table_index(table_index)
+                {
+                    if table_column.name() == name {
+                        index = table_column.index();
+                        break;
+                    }
+                }
                 let column_id = virtual_field.column_id;
 
                 // TODO check the numbers of blocks have virtual schema.
-                let data_type = if virtual_field.data_types.len() != 1 {
+                let table_data_type = if virtual_field.data_types.len() != 1 {
                     TableDataType::Nullable(Box::new(TableDataType::Variant))
                 } else {
                     match virtual_field.data_types[0] {
@@ -387,13 +405,32 @@ impl Binder {
                         _ => TableDataType::Nullable(Box::new(TableDataType::Variant)),
                     }
                 };
+                let data_type = DataType::from(&table_data_type);
 
-                virtual_column_name_map.insert(name, (data_type, column_id));
+                if index == 0 {
+                    let is_created = true;
+
+                    index = self.metadata.write().add_virtual_column(
+                        &base_column,
+                        column_id,
+                        name.clone(),
+                        table_data_type,
+                        Scalar::String(name.clone()),
+                        None,
+                        is_created,
+                    );
+                }
+                let virtual_column_binding = ColumnBindingBuilder::new(
+                    name,
+                    index,
+                    Box::new(data_type.clone()),
+                    Visibility::InVisible,
+                )
+                    .table_index(Some(table_index))
+                    .build();
+
+                bind_context.columns.push(virtual_column_binding);
             }
-            bind_context
-                .virtual_column_context
-                .virtual_column_names
-                .insert(table_index, virtual_column_name_map);
         }
 
         Ok(())

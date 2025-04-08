@@ -1235,6 +1235,38 @@ impl From<&TableDataType> for DataType {
     }
 }
 
+impl Into<Option<TableDataType>> for &DataType {
+    fn into(self) -> Option<TableDataType> {
+        let ty = match self {
+            DataType::Null => TableDataType::Null,
+            DataType::EmptyArray => TableDataType::EmptyArray,
+            DataType::EmptyMap => TableDataType::EmptyMap,
+            DataType::Boolean => TableDataType::Boolean,
+            DataType::Binary => TableDataType::Binary,
+            DataType::String => TableDataType::String,
+            DataType::Number(ty) => TableDataType::Number(*ty),
+            DataType::Decimal(ty) => TableDataType::Decimal(*ty),
+            DataType::Timestamp => TableDataType::Timestamp,
+            DataType::Date => TableDataType::Date,
+            DataType::Nullable(ty) => {
+                TableDataType::Nullable(Box::new(<&DataType as Into<Option<TableDataType>>>::into(&**ty)?))
+            },
+            DataType::Array(ty) => {
+                TableDataType::Array(Box::new(<&DataType as Into<Option<TableDataType>>>::into(&**ty)?))
+            },
+            DataType::Map(ty) => TableDataType::Map(Box::new(<&DataType as Into<Option<TableDataType>>>::into(&**ty)?)),
+            DataType::Bitmap => TableDataType::Bitmap,
+            DataType::Variant => TableDataType::Variant,
+            DataType::Geometry => TableDataType::Geometry,
+            DataType::Interval => TableDataType::Interval,
+            DataType::Geography => TableDataType::Geography,
+            DataType::Generic(_)
+            | DataType::Tuple(_) => return None,
+        };
+        Some(ty)
+    }
+}
+
 impl TableDataType {
     pub fn wrap_nullable(&self) -> Self {
         match self {
