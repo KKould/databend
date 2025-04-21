@@ -182,6 +182,10 @@ impl Settings {
         Ok(self.try_get_u64("enable_auto_fix_missing_bloom_index")? != 0)
     }
 
+    pub fn get_enable_auto_fix_missing_ngram_index(&self) -> Result<bool> {
+        Ok(self.try_get_u64("enable_auto_fix_missing_ngram_index")? != 0)
+    }
+
     // Get max_block_size.
     pub fn get_max_block_size(&self) -> Result<u64> {
         self.try_get_u64("max_block_size")

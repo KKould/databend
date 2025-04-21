@@ -26,7 +26,7 @@ use databend_common_meta_app::schema::TableIndex;
 use databend_storages_common_cache::CacheAccessor;
 use databend_storages_common_cache::CachedObject;
 use databend_storages_common_cache::LoadParams;
-use databend_storages_common_index::BloomIndexMeta;
+use databend_storages_common_index::{BloomIndexMeta, NgramIndexMeta};
 use databend_storages_common_index::InvertedIndexFile;
 use databend_storages_common_index::InvertedIndexMeta;
 use databend_storages_common_io::Files;
@@ -448,6 +448,13 @@ impl FuseTable {
                 }
                 blooms_to_be_purged.insert(loc.to_string());
             }
+            let mut ngrams_to_be_purged = HashSet::new();
+            for loc in &locations.ngram_location {
+                if locations_referenced_by_root.ngram_location.contains(loc) {
+                    continue;
+                }
+                ngrams_to_be_purged.insert(loc.to_string());
+            }
 
             let segment_locations_to_be_purged = HashSet::from_iter(
                 chunk
@@ -475,6 +482,7 @@ impl FuseTable {
                 agg_indexes_to_be_purged,
                 inverted_indexes_to_be_purged,
                 blooms_to_be_purged,
+                ngrams_to_be_purged,
                 segment_locations_to_be_purged,
             )
             .await?;
@@ -535,6 +543,7 @@ impl FuseTable {
             agg_indexes_to_be_purged,
             inverted_indexes_to_be_purged,
             root_location_tuple.bloom_location,
+            root_location_tuple.ngram_location,
             segment_locations_to_be_purged,
         )
         .await?;
@@ -560,6 +569,7 @@ impl FuseTable {
         agg_indexes_to_be_purged: HashSet<String>,
         inverted_indexes_to_be_purged: HashSet<String>,
         blooms_to_be_purged: HashSet<String>,
+        ngrams_to_be_purged: HashSet<String>,
         segments_to_be_purged: HashSet<String>,
     ) -> Result<()> {
         // 1. Try to purge block file chunks.
@@ -597,6 +607,15 @@ impl FuseTable {
                 inverted_indexes_to_be_purged,
             )
             .await?;
+        }
+
+        let ngram_count = ngrams_to_be_purged.len();
+        if ngram_count > 0 {
+            counter.ngrams += ngram_count;
+            self.try_purge_location_files_and_cache::<NgramIndexMeta, _>(
+                ctx.clone(),
+                ngrams_to_be_purged
+            ).await?;
         }
 
         // 2. Try to purge bloom index file chunks.
@@ -708,6 +727,7 @@ impl FuseTable {
     ) -> Result<LocationTuple> {
         let mut blocks = HashSet::new();
         let mut blooms = HashSet::new();
+        let mut ngrams = HashSet::new();
 
         let fuse_segments = SegmentsIO::create(ctx.clone(), self.operator.clone(), self.schema());
         let chunk_size = ctx.get_settings().get_max_threads()? as usize * 4;
@@ -731,12 +751,14 @@ impl FuseTable {
                 };
                 blocks.extend(location_tuple.block_location.into_iter());
                 blooms.extend(location_tuple.bloom_location.into_iter());
+                ngrams.extend(location_tuple.ngram_location.into_iter());
             }
         }
 
         Ok(LocationTuple {
             block_location: blocks,
             bloom_location: blooms,
+            ngram_location: ngrams,
         })
     }
 
@@ -760,6 +782,7 @@ struct RootSnapshotInfo {
 pub struct LocationTuple {
     pub block_location: HashSet<String>,
     pub bloom_location: HashSet<String>,
+    pub ngram_location: HashSet<String>,
 }
 
 impl TryFrom<Arc<CompactSegmentInfo>> for LocationTuple {
@@ -767,16 +790,21 @@ impl TryFrom<Arc<CompactSegmentInfo>> for LocationTuple {
     fn try_from(value: Arc<CompactSegmentInfo>) -> Result<Self> {
         let mut block_location = HashSet::new();
         let mut bloom_location = HashSet::new();
+        let mut ngram_location = HashSet::new();
         let block_metas = value.block_metas()?;
         for block_meta in block_metas.into_iter() {
             block_location.insert(block_meta.location.0.clone());
             if let Some(bloom_loc) = &block_meta.bloom_filter_index_location {
                 bloom_location.insert(bloom_loc.0.clone());
             }
+            if let Some(ngram_loc) = &block_meta.ngram_filter_index_location {
+                ngram_location.insert(ngram_loc.0.clone());
+            }
         }
         Ok(Self {
             block_location,
             bloom_location,
+            ngram_location,
         })
     }
 }
@@ -787,6 +815,7 @@ struct PurgeCounter {
     blocks: usize,
     agg_indexes: usize,
     inverted_indexes: usize,
+    ngrams: usize,
     blooms: usize,
     segments: usize,
     table_statistics: usize,
@@ -800,6 +829,7 @@ impl PurgeCounter {
             blocks: 0,
             agg_indexes: 0,
             inverted_indexes: 0,
+            ngrams: 0,
             blooms: 0,
             segments: 0,
             table_statistics: 0,

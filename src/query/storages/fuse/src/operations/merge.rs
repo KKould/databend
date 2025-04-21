@@ -18,7 +18,7 @@ use databend_common_base::base::tokio::sync::Semaphore;
 use databend_common_catalog::table::Table;
 use databend_common_catalog::table_context::TableContext;
 use databend_common_exception::Result;
-use databend_common_expression::TableSchemaRef;
+use databend_common_expression::{TableDataType, TableSchemaRef};
 use databend_common_pipeline_core::PipeItem;
 use databend_storages_common_index::BloomIndex;
 use databend_storages_common_table_meta::meta::Location;
@@ -92,6 +92,9 @@ impl FuseTable {
         let bloom_columns_map = self
             .bloom_index_cols()
             .bloom_index_fields(new_schema.clone(), BloomIndex::supported_type)?;
+        let ngram_columns_map = self
+            .ngram_index_cols
+            .bloom_index_fields(new_schema.clone(), |ty| matches!(ty.remove_nullable(), TableDataType::String))?;
         let inverted_index_builders = create_inverted_index_builders(&self.table_info.meta);
 
         let block_builder = BlockBuilder {
@@ -101,6 +104,8 @@ impl FuseTable {
             write_settings: self.get_write_settings(),
             cluster_stats_gen,
             bloom_columns_map,
+            ngram_columns_map,
+            n: self.n,
             inverted_index_builders,
             table_meta_timestamps,
         };

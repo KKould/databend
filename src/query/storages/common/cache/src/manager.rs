@@ -24,7 +24,7 @@ use databend_common_exception::Result;
 use log::info;
 use parking_lot::RwLock;
 
-use crate::caches::BlockMetaCache;
+use crate::caches::{BlockMetaCache, NgramIndexMetaCache};
 use crate::caches::BloomIndexFilterCache;
 use crate::caches::BloomIndexMetaCache;
 use crate::caches::CacheValue;
@@ -73,6 +73,7 @@ pub struct CacheManager {
     compact_segment_info_cache: CacheSlot<CompactSegmentInfoCache>,
     bloom_index_filter_cache: CacheSlot<BloomIndexFilterCache>,
     bloom_index_meta_cache: CacheSlot<BloomIndexMetaCache>,
+    ngram_index_meta_cache: CacheSlot<NgramIndexMetaCache>,
     inverted_index_meta_cache: CacheSlot<InvertedIndexMetaCache>,
     inverted_index_file_cache: CacheSlot<InvertedIndexFileCache>,
     prune_partitions_cache: CacheSlot<PrunePartitionsCache>,
@@ -146,6 +147,7 @@ impl CacheManager {
                 compact_segment_info_cache: CacheSlot::new(None),
                 bloom_index_filter_cache: CacheSlot::new(None),
                 bloom_index_meta_cache: CacheSlot::new(None),
+                ngram_index_meta_cache: CacheSlot::new(None),
                 inverted_index_meta_cache: CacheSlot::new(None),
                 inverted_index_file_cache: CacheSlot::new(None),
                 prune_partitions_cache: CacheSlot::new(None),
@@ -174,6 +176,10 @@ impl CacheManager {
                 config.table_bloom_index_filter_size as usize,
             );
             let bloom_index_meta_cache = Self::new_items_cache_slot(
+                MEMORY_CACHE_BLOOM_INDEX_FILE_META_DATA,
+                config.table_bloom_index_meta_count as usize,
+            );
+            let ngram_index_meta_cache = Self::new_items_cache_slot(
                 MEMORY_CACHE_BLOOM_INDEX_FILE_META_DATA,
                 config.table_bloom_index_meta_count as usize,
             );
@@ -220,6 +226,7 @@ impl CacheManager {
                 compact_segment_info_cache,
                 bloom_index_filter_cache,
                 bloom_index_meta_cache,
+                ngram_index_meta_cache,
                 inverted_index_meta_cache,
                 inverted_index_file_cache,
                 prune_partitions_cache,
@@ -348,6 +355,10 @@ impl CacheManager {
         self.bloom_index_meta_cache.get()
     }
 
+    pub fn get_ngram_index_meta_cache(&self) -> Option<NgramIndexMetaCache> {
+        self.ngram_index_meta_cache.get()
+    }
+
     pub fn get_inverted_index_meta_cache(&self) -> Option<InvertedIndexMetaCache> {
         self.inverted_index_meta_cache.get()
     }
@@ -439,6 +450,7 @@ const MEMORY_CACHE_INVERTED_INDEX_FILE_META_DATA: &str =
     "memory_cache_inverted_index_file_meta_data";
 
 const MEMORY_CACHE_BLOOM_INDEX_FILE_META_DATA: &str = "memory_cache_bloom_index_file_meta_data";
+const MEMORY_CACHE_NGRAM_INDEX_FILE_META_DATA: &str = "memory_cache_ngram_index_file_meta_data";
 const MEMORY_CACHE_BLOOM_INDEX_FILTER: &str = "memory_cache_bloom_index_filter";
 const MEMORY_CACHE_COMPACT_SEGMENT_INFO: &str = "memory_cache_compact_segment_info";
 const MEMORY_CACHE_TABLE_STATISTICS: &str = "memory_cache_table_statistics";

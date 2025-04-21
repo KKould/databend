@@ -2929,6 +2929,14 @@ pub struct CacheConfig {
     )]
     pub table_bloom_index_meta_count: u64,
 
+    /// Max number of cached ngram index meta objects. Set it to 0 to disable it.
+    #[clap(
+        long = "cache-table-ngram-index-meta-count",
+        value_name = "VALUE",
+        default_value = "3000"
+    )]
+    pub table_ngram_index_meta_count: u64,
+
     /// DEPRECATING, will be deprecated in the next prduction release.
     ///
     /// Max number of cached bloom index filters. Set it to 0 to disable it.
@@ -3278,6 +3286,7 @@ mod cache_config_converters {
                 data_cache_key_reload_policy: value.data_cache_key_reload_policy.try_into()?,
                 table_data_deserialized_data_bytes: value.table_data_deserialized_data_bytes,
                 table_data_deserialized_memory_ratio: value.table_data_deserialized_memory_ratio,
+                table_ngram_index_meta_count: value.table_ngram_index_meta_count,
             })
         }
     }
@@ -3292,6 +3301,7 @@ mod cache_config_converters {
                 block_meta_count: value.block_meta_count,
                 enable_table_bloom_index_cache: value.enable_table_index_bloom,
                 table_bloom_index_meta_count: value.table_bloom_index_meta_count,
+                table_ngram_index_meta_count: value.table_ngram_index_meta_count,
                 table_bloom_index_filter_count: value.table_bloom_index_filter_count,
                 table_bloom_index_filter_size: value.table_bloom_index_filter_size,
                 inverted_index_meta_count: value.inverted_index_meta_count,

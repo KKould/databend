@@ -298,6 +298,7 @@ impl FuseTable {
                 )
             };
         let bloom_index_cols = self.bloom_index_cols();
+        let ngram_index_cols = self.ngram_index_cols();
         let mut pruner = FusePruner::create_with_pages(
             &ctx,
             self.get_operator(),
@@ -306,6 +307,9 @@ impl FuseTable {
             cluster_key_meta,
             cluster_keys,
             bloom_index_cols,
+            None,
+            self.n,
+            ngram_index_cols,
             None,
             self.get_storage_format(),
         )?;

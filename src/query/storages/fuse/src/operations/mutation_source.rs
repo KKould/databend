@@ -191,6 +191,9 @@ impl FuseTable {
             &push_down,
             self.bloom_index_cols(),
             None,
+            self.n,
+            self.ngram_index_cols(),
+            None,
             self.get_storage_format(),
         )?;
 

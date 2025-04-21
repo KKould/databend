@@ -31,7 +31,7 @@ use databend_common_storages_fuse::FUSE_OPT_KEY_ROW_AVG_DEPTH_THRESHOLD;
 use databend_common_storages_fuse::FUSE_OPT_KEY_ROW_PER_BLOCK;
 use databend_common_storages_fuse::FUSE_OPT_KEY_ROW_PER_PAGE;
 use databend_storages_common_index::BloomIndex;
-use databend_storages_common_table_meta::table::OPT_KEY_BLOOM_INDEX_COLUMNS;
+use databend_storages_common_table_meta::table::{OPT_KEY_BLOOM_INDEX_COLUMNS, OPT_KEY_NGRAM_INDEX_COLUMNS};
 use databend_storages_common_table_meta::table::OPT_KEY_CHANGE_TRACKING;
 use databend_storages_common_table_meta::table::OPT_KEY_CLUSTER_TYPE;
 use databend_storages_common_table_meta::table::OPT_KEY_COMMENT;
@@ -61,6 +61,7 @@ pub static CREATE_FUSE_OPTIONS: LazyLock<HashSet<&'static str>> = LazyLock::new(
     r.insert(FUSE_OPT_KEY_DATA_RETENTION_PERIOD_IN_HOURS);
 
     r.insert(OPT_KEY_BLOOM_INDEX_COLUMNS);
+    r.insert(OPT_KEY_NGRAM_INDEX_COLUMNS);
     r.insert(OPT_KEY_TABLE_COMPRESSION);
     r.insert(OPT_KEY_STORAGE_FORMAT);
     r.insert(OPT_KEY_DATABASE_ID);

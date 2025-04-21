@@ -35,7 +35,7 @@ use crate::constants::FUSE_TBL_SNAPSHOT_STATISTICS_PREFIX;
 use crate::constants::FUSE_TBL_VIRTUAL_BLOCK_PREFIX;
 use crate::index::filters::BlockFilter;
 use crate::index::InvertedIndexFile;
-use crate::FUSE_TBL_AGG_INDEX_PREFIX;
+use crate::{FUSE_TBL_AGG_INDEX_PREFIX, FUSE_TBL_NGRAM_INDEX_PREFIX};
 use crate::FUSE_TBL_INVERTED_INDEX_PREFIX;
 use crate::FUSE_TBL_LAST_SNAPSHOT_HINT_V2;
 use crate::FUSE_TBL_XOR_BLOOM_INDEX_PREFIX;
@@ -60,6 +60,7 @@ pub struct TableMetaLocationGenerator {
     block_location_prefix: String,
     segment_info_location_prefix: String,
     bloom_index_location_prefix: String,
+    ngram_index_location_prefix: String,
     snapshot_location_prefix: String,
     agg_index_location_prefix: String,
     inverted_index_location_prefix: String,
@@ -75,11 +76,14 @@ impl TableMetaLocationGenerator {
         let agg_index_location_prefix = format!("{}/{}/", &prefix, FUSE_TBL_AGG_INDEX_PREFIX);
         let inverted_index_location_prefix =
             format!("{}/{}/", &prefix, FUSE_TBL_INVERTED_INDEX_PREFIX);
+        let ngram_index_location_prefix =
+            format!("{}/{}/", &prefix, FUSE_TBL_NGRAM_INDEX_PREFIX);
         Self {
             prefix,
             block_location_prefix,
             segment_info_location_prefix,
             bloom_index_location_prefix,
+            ngram_index_location_prefix,
             snapshot_location_prefix,
             agg_index_location_prefix,
             inverted_index_location_prefix,
@@ -96,6 +100,10 @@ impl TableMetaLocationGenerator {
 
     pub fn block_bloom_index_prefix(&self) -> &str {
         &self.bloom_index_location_prefix
+    }
+
+    pub fn block_ngram_index_prefix(&self) -> &str {
+        &self.ngram_index_location_prefix
     }
 
     pub fn segment_location_prefix(&self) -> &str {
@@ -127,6 +135,18 @@ impl TableMetaLocationGenerator {
             format!(
                 "{}{}_v{}.parquet",
                 self.block_bloom_index_prefix(),
+                block_id.as_simple(),
+                BlockFilter::VERSION,
+            ),
+            BlockFilter::VERSION,
+        )
+    }
+
+    pub fn block_ngram_index_location(&self, block_id: &Uuid) -> Location {
+        (
+            format!(
+                "{}{}_v{}.parquet",
+                self.block_ngram_index_prefix(),
                 block_id.as_simple(),
                 BlockFilter::VERSION,
             ),

@@ -30,7 +30,7 @@ use databend_common_expression::TableField;
 use databend_common_expression::TableSchema;
 use databend_storages_common_cache::LoadParams;
 use databend_storages_common_index::filters::Xor8Filter;
-use databend_storages_common_index::BloomIndexMeta;
+use databend_storages_common_index::{BloomIndexMeta, NgramIndexMeta};
 use databend_storages_common_table_meta::meta::Location;
 use databend_storages_common_table_meta::meta::SingleColumnMeta;
 use futures_util::future::try_join_all;
@@ -88,8 +88,26 @@ async fn load_bloom_filter_by_columns<'a>(
     index_length: u64,
 ) -> Result<BlockFilter> {
     // 1. load index meta
-    let bloom_index_meta = load_index_meta(dal.clone(), index_path, index_length).await?;
+    let bloom_index_meta = load_bloom_index_meta(dal.clone(), index_path, index_length).await?;
 
+    inner_load_filter_by_columns(&dal, column_needed, index_path, &bloom_index_meta).await
+}
+
+#[fastrace::trace]
+async fn load_ngram_filter_by_columns<'a>(
+    dal: Operator,
+    column_needed: &'a [String],
+    index_path: &'a str,
+    index_length: u64,
+) -> Result<BlockFilter> {
+    // 1. load index meta
+    let ngram_index_meta = load_ngram_index_meta(dal.clone(), index_path, index_length).await?;
+
+    inner_load_filter_by_columns(&dal, column_needed, index_path, &ngram_index_meta.inner).await
+}
+
+#[fastrace::trace]
+async fn inner_load_filter_by_columns(dal: &Operator, column_needed: &[String], index_path: &str, bloom_index_meta: &BloomIndexMeta) -> Result<BlockFilter> {
     // 2. filter out columns that needed and exist in the index
     // 2.1 dedup the columns
     let column_needed: HashSet<&String> = HashSet::from_iter(column_needed);
@@ -173,7 +191,7 @@ async fn load_column_xor8_filter<'a>(
 /// Loads index meta data
 /// read data from cache, or populate cache items if possible
 #[fastrace::trace]
-async fn load_index_meta(dal: Operator, path: &str, length: u64) -> Result<Arc<BloomIndexMeta>> {
+async fn load_bloom_index_meta(dal: Operator, path: &str, length: u64) -> Result<Arc<BloomIndexMeta>> {
     let path_owned = path.to_owned();
     async move {
         let reader = MetaReaders::bloom_index_meta_reader(dal);
@@ -192,6 +210,28 @@ async fn load_index_meta(dal: Operator, path: &str, length: u64) -> Result<Arc<B
     }
     .execute_in_runtime(&GlobalIORuntime::instance())
     .await?
+}
+
+#[fastrace::trace]
+async fn load_ngram_index_meta(dal: Operator, path: &str, length: u64) -> Result<Arc<NgramIndexMeta>> {
+    let path_owned = path.to_owned();
+    async move {
+        let reader = MetaReaders::ngram_index_meta_reader(dal);
+        // Format of FileMetaData is not versioned, version argument is ignored by the underlying reader,
+        // so we just pass a zero to reader
+        let version = 0;
+
+        let load_params = LoadParams {
+            location: path_owned,
+            len_hint: Some(length),
+            ver: version,
+            put_cache: true,
+        };
+
+        reader.read(&load_params).await
+    }
+        .execute_in_runtime(&GlobalIORuntime::instance())
+        .await?
 }
 
 #[async_trait::async_trait]

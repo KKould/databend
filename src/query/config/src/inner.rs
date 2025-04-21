@@ -571,6 +571,9 @@ pub struct CacheConfig {
     /// Max number of cached bloom index meta objects. Set it to 0 to disable it.
     pub table_bloom_index_meta_count: u64,
 
+    /// Max number of cached ngram index meta objects. Set it to 0 to disable it.
+    pub table_ngram_index_meta_count: u64,
+
     /// Max number of cached prune partitions objects. Set it to 0 to disable it.
     pub table_prune_partitions_count: u64,
 
@@ -713,6 +716,7 @@ impl Default for CacheConfig {
             table_meta_statistic_count: 256,
             enable_table_index_bloom: true,
             table_bloom_index_meta_count: 3000,
+            table_ngram_index_meta_count: 3000,
             table_bloom_index_filter_count: 0,
             table_bloom_index_filter_size: 2147483648,
             inverted_index_meta_count: 3000,

@@ -35,7 +35,7 @@ use databend_common_catalog::table::Table;
 use databend_common_catalog::table_context::TableContext;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
-use databend_common_expression::Scalar;
+use databend_common_expression::{Scalar, TableDataType};
 use databend_common_expression::TableSchemaRef;
 use databend_common_pipeline_core::ExecutionInfo;
 use databend_common_pipeline_core::Pipeline;
@@ -56,7 +56,7 @@ use sha2::Digest;
 use sha2::Sha256;
 
 use crate::fuse_part::FuseBlockPartInfo;
-use crate::io::BloomIndexBuilder;
+use crate::io::{BloomIndexBuilder, NgramIndexBuilder};
 use crate::pruning::create_segment_location_vector;
 use crate::pruning::table_sample;
 use crate::pruning::BlockPruner;
@@ -386,6 +386,7 @@ impl FuseTable {
         }
         let block_pruner = Arc::new(BlockPruner::create(pruner.pruning_ctx.clone())?);
         if pruner.pruning_ctx.bloom_pruner.is_some()
+            || pruner.pruning_ctx.ngram_pruner.is_some()
             || pruner.pruning_ctx.inverted_index_pruner.is_some()
         {
             // async pruning with bloom index or inverted index.
@@ -493,6 +494,26 @@ impl FuseTable {
         } else {
             None
         };
+        let ngram_index_builder = if ctx
+            .get_settings()
+            .get_enable_auto_fix_missing_bloom_index()?
+        {
+            let storage_format = self.storage_format;
+
+            let ngram_columns_map = self
+                .ngram_index_cols
+                .bloom_index_fields(table_schema.clone(), |ty| matches!(ty.remove_nullable(), TableDataType::String))?;
+            Some(NgramIndexBuilder {
+                table_ctx: ctx.clone(),
+                table_schema: table_schema.clone(),
+                table_dal: dal.clone(),
+                storage_format,
+                ngram_columns_map,
+                n: self.n,
+            })
+        } else {
+            None
+        };
 
         let pruner =
             if !self.is_native() || self.cluster_type().is_none_or(|v| v != ClusterType::Linear) {
@@ -503,6 +524,9 @@ impl FuseTable {
                     &push_downs,
                     self.bloom_index_cols(),
                     bloom_index_builder,
+                    self.n,
+                    self.ngram_index_cols(),
+                    ngram_index_builder,
                     self.get_storage_format(),
                 )?
             } else {
@@ -517,6 +541,9 @@ impl FuseTable {
                     cluster_keys,
                     self.bloom_index_cols(),
                     bloom_index_builder,
+                    self.n,
+                    self.ngram_index_cols(),
+                    ngram_index_builder,
                     self.get_storage_format(),
                 )?
             };

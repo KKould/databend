@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use std::cmp::Ordering;
+use std::hash::{DefaultHasher, Hasher};
 use std::io::Write;
-
+use naive_cityhash::{cityhash64_with_seed, cityhash64_with_seeds};
 use databend_common_base::base::uuid::Uuid;
 use databend_common_expression::types::decimal::Decimal128Type;
 use databend_common_expression::types::number::SimpleDomain;
@@ -24,6 +25,7 @@ use databend_common_expression::types::string::StringDomain;
 use databend_common_expression::types::ArrayType;
 use databend_common_expression::types::NumberType;
 use databend_common_expression::types::StringType;
+use databend_common_expression::types::UInt32Type;
 use databend_common_expression::unify_string;
 use databend_common_expression::vectorize_1_arg;
 use databend_common_expression::vectorize_with_builder_1_arg;
@@ -33,6 +35,7 @@ use databend_common_expression::vectorize_with_builder_4_arg;
 use databend_common_expression::FunctionDomain;
 use databend_common_expression::FunctionRegistry;
 use stringslice::StringSlice;
+use crate::scalars::hash::DFHash;
 
 pub const ALL_STRING_FUNC_NAMES: &[&str] = &[
     "upper",
@@ -196,7 +199,7 @@ pub fn register(registry: &mut FunctionRegistry) {
                     output.put_str(srcstr.slice(0..pos));
                     output.put_str(substr);
                     if pos + len < srcstr_len {
-                        output.put_str(srcstr.slice(pos + len .. ));
+                        output.put_str(srcstr.slice(pos + len..));
                     }
                 }
                 output.commit_row();
@@ -280,6 +283,56 @@ pub fn register(registry: &mut FunctionRegistry) {
                 output.commit_row();
             }),
     );
+
+    registry
+        .register_passthrough_nullable_2_arg::<StringType, UInt32Type, ArrayType<StringType>, _, _>(
+            "ngram",
+            |_, _, _| FunctionDomain::Full,
+            vectorize_with_builder_2_arg::<StringType, UInt32Type, ArrayType<StringType>>(
+                |text, n, output, _| {
+                    let n = n as usize;
+                    text.char_indices()
+                        .zip(text.char_indices().skip(n - 1))
+                        .filter_map(move |((start_idx, _), (end_idx, c))| {
+                            let end = end_idx + c.len_utf8();
+                            if end <= text.len() {
+                                Some(&text[start_idx..end])
+                            } else {
+                                None
+                            }
+                        })
+                        .for_each(|text| {
+                            output.put_item(text);
+                        });
+                    output.commit_row();
+                },
+            ),
+        );
+
+    registry
+        .register_passthrough_nullable_2_arg::<StringType, UInt32Type, ArrayType<NumberType<u64>>, _, _>(
+            "ngram_then_hash",
+            |_, _, _| FunctionDomain::Full,
+            vectorize_with_builder_2_arg::<StringType, UInt32Type, ArrayType<NumberType<u64>>>(
+                |text, n, output, _| {
+                    let n = n as usize;
+                    text.char_indices()
+                        .zip(text.char_indices().skip(n - 1))
+                        .filter_map(move |((start_idx, _), (end_idx, c))| {
+                            let end = end_idx + c.len_utf8();
+                            if end <= text.len() {
+                                Some(&text[start_idx..end])
+                            } else {
+                                None
+                            }
+                        })
+                        .for_each(|text| {
+                            output.put_item(cityhash64_with_seeds(text.as_bytes(), 0, 217728422));
+                        });
+                    output.commit_row();
+                },
+            ),
+        );
 
     registry.register_passthrough_nullable_1_arg::<Decimal128Type, StringType, _, _>(
         "to_uuid",
@@ -710,33 +763,33 @@ pub fn register(registry: &mut FunctionRegistry) {
 
     registry.register_passthrough_nullable_3_arg::<StringType, NumberType<i64>, NumberType<u64>, StringType, _, _>(
         "substr",
-             |_, arg1, arg2, arg3| {
-                if arg2.min == arg2.max && arg2.min == 1 {
-                    let rm = arg3.min as usize;
-                    let min = if rm < arg1.min.chars().count() {
-                        arg1.min.slice(0..rm).to_string()
-                    } else {
-                        arg1.min.clone()
-                    };
-
-                    let rn = arg3.max as usize;
-                    let max = arg1.max.as_ref().map(|ln| {
-                        if rn < ln.chars().count() {
-                            ln.slice(0..rn).to_string()
-                        } else {
-                            ln.clone()
-                        }
-                    });
-
-                    FunctionDomain::Domain(StringDomain { min, max })
+        |_, arg1, arg2, arg3| {
+            if arg2.min == arg2.max && arg2.min == 1 {
+                let rm = arg3.min as usize;
+                let min = if rm < arg1.min.chars().count() {
+                    arg1.min.slice(0..rm).to_string()
                 } else {
-                    FunctionDomain::Full
-                }
-            },
-             vectorize_with_builder_3_arg::<StringType, NumberType<i64>, NumberType<u64>, StringType>(|s, pos, len, output, _ctx| {
-                substr(output, s, pos, len);
-             }),
-         );
+                    arg1.min.clone()
+                };
+
+                let rn = arg3.max as usize;
+                let max = arg1.max.as_ref().map(|ln| {
+                    if rn < ln.chars().count() {
+                        ln.slice(0..rn).to_string()
+                    } else {
+                        ln.clone()
+                    }
+                });
+
+                FunctionDomain::Domain(StringDomain { min, max })
+            } else {
+                FunctionDomain::Full
+            }
+        },
+        vectorize_with_builder_3_arg::<StringType, NumberType<i64>, NumberType<u64>, StringType>(|s, pos, len, output, _ctx| {
+            substr(output, s, pos, len);
+        }),
+    );
 
     registry
         .register_passthrough_nullable_2_arg::<StringType, StringType, ArrayType<StringType>, _, _>(
@@ -770,7 +823,7 @@ pub fn register(registry: &mut FunctionRegistry) {
                         }
                     } else if s != sep {
                         if part < 0 {
-                            let idx = (-part-1) as usize;
+                            let idx = (-part - 1) as usize;
                             for (i, v) in s.rsplit(sep).enumerate() {
                                 if i == idx {
                                     output.put_str(v);

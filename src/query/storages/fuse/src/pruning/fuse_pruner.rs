@@ -54,10 +54,10 @@ use rand::distributions::Distribution;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 
-use crate::io::BloomIndexBuilder;
+use crate::io::{BloomIndexBuilder, NgramIndexBuilder};
 use crate::operations::DeletedSegmentInfo;
 use crate::pruning::segment_pruner::SegmentPruner;
-use crate::pruning::BlockPruner;
+use crate::pruning::{BlockPruner, NgramPrunerCreator};
 use crate::pruning::BloomPruner;
 use crate::pruning::BloomPrunerCreator;
 use crate::pruning::FusePruningStatistics;
@@ -77,6 +77,7 @@ pub struct PruningContext {
     pub limit_pruner: Arc<dyn Limiter + Send + Sync>,
     pub range_pruner: Arc<dyn RangePruner + Send + Sync>,
     pub bloom_pruner: Option<Arc<dyn BloomPruner + Send + Sync>>,
+    pub ngram_pruner: Option<Arc<dyn BloomPruner + Send + Sync>>,
     pub page_pruner: Arc<dyn PagePruner + Send + Sync>,
     pub internal_column_pruner: Option<Arc<InternalColumnPruner>>,
     pub inverted_index_pruner: Option<Arc<InvertedIndexPruner>>,
@@ -95,8 +96,11 @@ impl PruningContext {
         cluster_key_meta: Option<ClusterKey>,
         cluster_keys: Vec<RemoteExpr<String>>,
         bloom_index_cols: BloomIndexColumns,
+        ngram_index_cols: BloomIndexColumns,
+        n: u32,
         max_concurrency: usize,
         bloom_index_builder: Option<BloomIndexBuilder>,
+        ngram_index_builder: Option<NgramIndexBuilder>,
         storage_format: FuseStorageFormat,
     ) -> Result<Arc<PruningContext>> {
         let func_ctx = ctx.get_function_context()?;
@@ -154,6 +158,16 @@ impl PruningContext {
             bloom_index_builder,
         )?;
 
+        let ngram_pruner = NgramPrunerCreator::create(
+            func_ctx.clone(),
+            &table_schema,
+            dal.clone(),
+            filter_expr.as_ref(),
+            ngram_index_cols,
+            ngram_index_builder,
+            n
+        )?;
+
         // Page pruner, used in native format
         let page_pruner = PagePrunerCreator::try_create(
             func_ctx.clone(),
@@ -194,6 +208,7 @@ impl PruningContext {
             limit_pruner,
             range_pruner,
             bloom_pruner,
+            ngram_pruner,
             page_pruner,
             internal_column_pruner,
             inverted_index_pruner,
@@ -223,6 +238,9 @@ impl FusePruner {
         push_down: &Option<PushDownInfo>,
         bloom_index_cols: BloomIndexColumns,
         bloom_index_builder: Option<BloomIndexBuilder>,
+        n: u32,
+        ngram_index_cols: BloomIndexColumns,
+        ngram_index_builder: Option<NgramIndexBuilder>,
         storage_format: FuseStorageFormat,
     ) -> Result<Self> {
         Self::create_with_pages(
@@ -234,6 +252,9 @@ impl FusePruner {
             vec![],
             bloom_index_cols,
             bloom_index_builder,
+            n,
+            ngram_index_cols,
+            ngram_index_builder,
             storage_format,
         )
     }
@@ -248,6 +269,9 @@ impl FusePruner {
         cluster_keys: Vec<RemoteExpr<String>>,
         bloom_index_cols: BloomIndexColumns,
         bloom_index_builder: Option<BloomIndexBuilder>,
+        n: u32,
+        ngram_index_cols: BloomIndexColumns,
+        ngram_index_builder: Option<NgramIndexBuilder>,
         storage_format: FuseStorageFormat,
     ) -> Result<Self> {
         let max_concurrency = {
@@ -273,8 +297,11 @@ impl FusePruner {
             cluster_key_meta,
             cluster_keys,
             bloom_index_cols,
+            ngram_index_cols,
+            n,
             max_concurrency,
             bloom_index_builder,
+            ngram_index_builder,
             storage_format,
         )?;
 

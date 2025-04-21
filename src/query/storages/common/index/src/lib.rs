@@ -21,10 +21,13 @@ mod index;
 mod inverted_index;
 mod page_index;
 mod range_index;
+mod ngram_index;
 
 pub use bloom_index::BloomIndex;
 pub use bloom_index::BloomIndexMeta;
 pub use bloom_index::FilterEvalResult;
+pub use ngram_index::NgramIndexMeta;
+pub use ngram_index::NgramIndex;
 pub use index::Index;
 pub use inverted_index::extract_component_fields;
 pub use inverted_index::extract_fsts;

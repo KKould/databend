@@ -24,7 +24,7 @@ use databend_storages_common_cache::CacheManager;
 use databend_storages_common_cache::InMemoryItemCacheReader;
 use databend_storages_common_cache::LoadParams;
 use databend_storages_common_cache::Loader;
-use databend_storages_common_index::BloomIndexMeta;
+use databend_storages_common_index::{BloomIndexMeta, NgramIndexMeta};
 use databend_storages_common_index::InvertedIndexMeta;
 use databend_storages_common_table_meta::meta::CompactSegmentInfo;
 use databend_storages_common_table_meta::meta::SegmentInfoVersion;
@@ -46,6 +46,7 @@ use self::thrift_file_meta_read::read_thrift_file_metadata;
 pub type TableSnapshotStatisticsReader =
     InMemoryItemCacheReader<TableSnapshotStatistics, LoaderWrapper<Operator>>;
 pub type BloomIndexMetaReader = InMemoryItemCacheReader<BloomIndexMeta, LoaderWrapper<Operator>>;
+pub type NgramIndexMetaReader = InMemoryItemCacheReader<NgramIndexMeta, LoaderWrapper<Operator>>;
 pub type TableSnapshotReader = InMemoryItemCacheReader<TableSnapshot, LoaderWrapper<Operator>>;
 pub type CompactSegmentInfoReader =
     InMemoryItemCacheReader<CompactSegmentInfo, LoaderWrapper<(Operator, TableSchemaRef)>>;
@@ -90,6 +91,13 @@ impl MetaReaders {
     pub fn bloom_index_meta_reader(dal: Operator) -> BloomIndexMetaReader {
         BloomIndexMetaReader::new(
             CacheManager::instance().get_bloom_index_meta_cache(),
+            LoaderWrapper(dal),
+        )
+    }
+
+    pub fn ngram_index_meta_reader(dal: Operator) -> NgramIndexMetaReader {
+        NgramIndexMetaReader::new(
+            CacheManager::instance().get_ngram_index_meta_cache(),
             LoaderWrapper(dal),
         )
     }
@@ -152,6 +160,18 @@ impl Loader<BloomIndexMeta> for LoaderWrapper<Operator> {
             })?;
 
         BloomIndexMeta::try_from(meta)
+    }
+}
+
+#[async_trait::async_trait]
+impl Loader<NgramIndexMeta> for LoaderWrapper<Operator> {
+    #[async_backtrace::framed]
+    async fn load(&self, params: &LoadParams) -> Result<NgramIndexMeta> {
+        let inner = <Self as Loader<BloomIndexMeta>>::load(self, params).await?;
+
+        Ok(NgramIndexMeta {
+            inner,
+        })
     }
 }
 

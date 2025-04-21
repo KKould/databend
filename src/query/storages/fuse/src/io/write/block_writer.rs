@@ -42,7 +42,7 @@ use databend_common_metrics::storage::metrics_inc_block_write_milliseconds;
 use databend_common_metrics::storage::metrics_inc_block_write_nums;
 use databend_common_native::write::NativeWriter;
 use databend_storages_common_blocks::blocks_to_parquet;
-use databend_storages_common_index::BloomIndex;
+use databend_storages_common_index::{BloomIndex, NgramIndex};
 use databend_storages_common_io::ReadSettings;
 use databend_storages_common_table_meta::meta::BlockMeta;
 use databend_storages_common_table_meta::meta::ClusterStatistics;
@@ -51,7 +51,7 @@ use databend_storages_common_table_meta::meta::Location;
 use databend_storages_common_table_meta::meta::TableMetaTimestamps;
 use databend_storages_common_table_meta::table::TableCompression;
 use opendal::Operator;
-
+use tantivy::tokenizer::TextAnalyzer;
 use crate::io::block_to_inverted_index;
 use crate::io::write::WriteSettings;
 use crate::io::BlockReader;
@@ -240,6 +240,122 @@ impl BloomIndexState {
     }
 }
 
+pub struct NgramIndexState {
+    pub(crate) data: Vec<u8>,
+    pub(crate) size: u64,
+    pub(crate) location: Location,
+    pub(crate) column_distinct_count: HashMap<FieldIndex, usize>,
+}
+
+pub struct NgramIndexBuilder {
+    pub table_ctx: Arc<dyn TableContext>,
+    pub table_schema: TableSchemaRef,
+    pub table_dal: Operator,
+    pub storage_format: FuseStorageFormat,
+    pub ngram_columns_map: BTreeMap<FieldIndex, TableField>,
+    pub n: u32,
+}
+
+impl NgramIndexState {
+    pub fn from_ngram_index(ngram_index: &NgramIndex, location: Location) -> Result<Self> {
+        let index_block = ngram_index.serialize_to_data_block()?;
+        let filter_schema = &ngram_index.filter_schema;
+        let column_distinct_count = ngram_index.column_distinct_count.clone();
+        let mut data = Vec::with_capacity(DEFAULT_BLOCK_INDEX_BUFFER_SIZE);
+        let index_block_schema = filter_schema;
+        let _ = blocks_to_parquet(
+            index_block_schema,
+            vec![index_block],
+            &mut data,
+            TableCompression::None,
+        )?;
+        let data_size = data.len() as u64;
+        Ok(Self {
+            data,
+            size: data_size,
+            location,
+            column_distinct_count,
+        })
+    }
+
+    pub fn from_data_block(
+        ctx: Arc<dyn TableContext>,
+        block: &DataBlock,
+        location: Location,
+        ngram_columns_map: BTreeMap<FieldIndex, TableField>,
+        n: u32,
+    ) -> Result<Option<Self>> {
+        let maybe_bloom_index = NgramIndex::try_create(
+            ctx.get_function_context()?,
+            block,
+            ngram_columns_map,
+            n,
+        )?;
+        if let Some(bloom_index) = maybe_bloom_index {
+            Ok(Some(Self::from_ngram_index(&bloom_index, location)?))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl NgramIndexBuilder {
+    pub fn ngram_index_state_from_data_block(
+        &self,
+        block: &DataBlock,
+        ngram_location: Location,
+    ) -> Result<Option<(NgramIndexState, NgramIndex)>> {
+        let maybe_ngram_index = NgramIndex::try_create(
+            self.table_ctx.get_function_context()?,
+            block,
+            self.ngram_columns_map.clone(),
+            self.n,
+        )?;
+
+        match maybe_ngram_index {
+            None => Ok(None),
+            Some(ngram_index) => Ok(Some((
+                NgramIndexState::from_ngram_index(&ngram_index, ngram_location)?,
+                ngram_index,
+            ))),
+        }
+    }
+
+    pub async fn ngram_index_state_from_block_meta(
+        &self,
+        block_meta: &BlockMeta,
+    ) -> Result<Option<(NgramIndexState, NgramIndex)>> {
+        let ctx = self.table_ctx.clone();
+
+        // the caller should not pass a block meta without a bloom index location here.
+        assert!(block_meta.ngram_filter_index_location.is_some());
+
+        let projection =
+            Projection::Columns((0..self.table_schema.fields().len()).collect::<Vec<usize>>());
+
+        let block_reader = BlockReader::create(
+            ctx,
+            self.table_dal.clone(),
+            self.table_schema.clone(),
+            projection,
+            false,
+            false,
+            false,
+        )?;
+
+        let settings = ReadSettings::from_ctx(&self.table_ctx)?;
+
+        let data_block = block_reader
+            .read_by_meta(&settings, block_meta, &self.storage_format)
+            .await?;
+
+        self.ngram_index_state_from_data_block(
+            &data_block,
+            block_meta.ngram_filter_index_location.clone().unwrap(),
+        )
+    }
+}
+
 #[derive(Clone)]
 pub struct InvertedIndexBuilder {
     pub(crate) name: String,
@@ -332,6 +448,7 @@ pub struct BlockSerialization {
     pub size: u64, // TODO redundancy
     pub block_meta: BlockMeta,
     pub bloom_index_state: Option<BloomIndexState>,
+    pub ngram_index_state: Option<NgramIndexState>,
     pub inverted_index_states: Vec<InvertedIndexState>,
 }
 
@@ -343,6 +460,8 @@ pub struct BlockBuilder {
     pub write_settings: WriteSettings,
     pub cluster_stats_gen: ClusterStatsGenerator,
     pub bloom_columns_map: BTreeMap<FieldIndex, TableField>,
+    pub ngram_columns_map: BTreeMap<FieldIndex, TableField>,
+    pub n: u32,
     pub inverted_index_builders: Vec<InvertedIndexBuilder>,
     pub table_meta_timestamps: TableMetaTimestamps,
 }
@@ -363,9 +482,30 @@ impl BlockBuilder {
             bloom_index_location,
             self.bloom_columns_map.clone(),
         )?;
-        let column_distinct_count = bloom_index_state
+        let mut column_distinct_count = bloom_index_state
             .as_ref()
             .map(|i| i.column_distinct_count.clone());
+
+        // Ngram Index and Bloom Index are mutually exclusive, 
+        // so additional column distinct count is required to keep the distinct_of_values of StatisticsOfColumns accurate.
+        let ngram_index_location = self.meta_locations.block_ngram_index_location(&block_id);
+        let ngram_index_state = NgramIndexState::from_data_block(
+            self.ctx.clone(),
+            &data_block,
+            ngram_index_location,
+            self.ngram_columns_map.clone(),
+            self.n,
+        )?;
+        if let Some(ngram_index_state) = &ngram_index_state {
+            match &mut column_distinct_count {
+                None => {
+                    column_distinct_count = Some(ngram_index_state.column_distinct_count.clone());
+                }
+                Some(distinct_count_map) => {
+                    distinct_count_map.extend(ngram_index_state.column_distinct_count.iter())
+                }
+            }
+        }
 
         let mut inverted_index_states = Vec::with_capacity(self.inverted_index_builders.len());
         for inverted_index_builder in &self.inverted_index_builders {
@@ -406,6 +546,7 @@ impl BlockBuilder {
             cluster_stats,
             location: block_location,
             bloom_filter_index_location: bloom_index_state.as_ref().map(|v| v.location.clone()),
+            ngram_filter_index_location: ngram_index_state.as_ref().map(|v| v.location.clone()),
             bloom_filter_index_size: bloom_index_state
                 .as_ref()
                 .map(|v| v.size)
@@ -413,6 +554,9 @@ impl BlockBuilder {
             compression: self.write_settings.table_compression.into(),
             inverted_index_size,
             create_on: Some(Utc::now()),
+            ngram_filter_index_size: ngram_index_state
+                .as_ref()
+                .map(|v| v.size),
         };
 
         let serialized = BlockSerialization {
@@ -420,6 +564,7 @@ impl BlockBuilder {
             size: file_size,
             block_meta,
             bloom_index_state,
+            ngram_index_state,
             inverted_index_states,
         };
         Ok(serialized)
@@ -434,6 +579,7 @@ impl BlockWriter {
 
         Self::write_down_data_block(dal, serialized.block_raw_data, &block_meta.location.0).await?;
         Self::write_down_bloom_index_state(dal, serialized.bloom_index_state).await?;
+        Self::write_down_ngram_index_state(dal, serialized.ngram_index_state).await?;
         Self::write_down_inverted_index_state(dal, serialized.inverted_index_states).await?;
 
         Ok(block_meta)
@@ -461,6 +607,23 @@ impl BlockWriter {
         bloom_index_state: Option<BloomIndexState>,
     ) -> Result<()> {
         if let Some(index_state) = bloom_index_state {
+            let start = Instant::now();
+
+            let location = &index_state.location.0;
+            write_data(index_state.data, dal, location).await?;
+
+            metrics_inc_block_index_write_nums(1);
+            metrics_inc_block_index_write_nums(index_state.size);
+            metrics_inc_block_index_write_milliseconds(start.elapsed().as_millis() as u64);
+        }
+        Ok(())
+    }
+
+    pub async fn write_down_ngram_index_state(
+        dal: &Operator,
+        ngram_index_state: Option<NgramIndexState>,
+    ) -> Result<()> {
+        if let Some(index_state) = ngram_index_state {
             let start = Instant::now();
 
             let location = &index_state.location.0;

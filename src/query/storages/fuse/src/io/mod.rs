@@ -47,6 +47,8 @@ pub use write::BlockSerialization;
 pub use write::BlockWriter;
 pub use write::BloomIndexBuilder;
 pub use write::BloomIndexState;
+pub use write::NgramIndexBuilder;
+pub use write::NgramIndexState;
 pub use write::CachedMetaWriter;
 pub use write::InvertedIndexBuilder;
 pub use write::InvertedIndexWriter;

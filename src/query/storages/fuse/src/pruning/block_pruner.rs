@@ -53,6 +53,7 @@ impl BlockPruner {
 
         // Apply block pruning.
         if self.pruning_ctx.bloom_pruner.is_some()
+            || self.pruning_ctx.ngram_pruner.is_some()
             || self.pruning_ctx.inverted_index_pruner.is_some()
             || self.pruning_ctx.virtual_column_pruner.is_some()
         {
@@ -102,6 +103,7 @@ impl BlockPruner {
         let range_pruner = self.pruning_ctx.range_pruner.clone();
         let page_pruner = self.pruning_ctx.page_pruner.clone();
         let bloom_pruner = self.pruning_ctx.bloom_pruner.clone();
+        let ngram_pruner = self.pruning_ctx.ngram_pruner.clone();
         let inverted_index_pruner = self.pruning_ctx.inverted_index_pruner.clone();
         let virtual_column_pruner = self.pruning_ctx.virtual_column_pruner.clone();
 
@@ -144,13 +146,16 @@ impl BlockPruner {
 
                     // not pruned by block zone map index,
                     let bloom_pruner = bloom_pruner.clone();
+                    let ngram_pruner = ngram_pruner.clone();
                     let limit_pruner = limit_pruner.clone();
                     let page_pruner = page_pruner.clone();
                     let inverted_index_pruner = inverted_index_pruner.clone();
                     let virtual_column_pruner = virtual_column_pruner.clone();
                     let block_location = block_meta.location.clone();
-                    let index_location = block_meta.bloom_filter_index_location.clone();
-                    let index_size = block_meta.bloom_filter_index_size;
+                    let bloom_index_location = block_meta.bloom_filter_index_location.clone();
+                    let ngram_index_location = block_meta.ngram_filter_index_location.clone();
+                    let bloom_index_size = block_meta.bloom_filter_index_size;
+                    let ngram_index_size = block_meta.ngram_filter_index_size.clone();
                     let column_ids = block_meta.col_metas.keys().cloned().collect::<Vec<_>>();
 
                     let v: BlockPruningFuture = Box::new(move |permit: OwnedSemaphorePermit| {
@@ -169,14 +174,15 @@ impl BlockPruner {
 
                                 let keep_by_bloom = bloom_pruner
                                     .should_keep(
-                                        &index_location,
-                                        index_size,
+                                        &bloom_index_location,
+                                        bloom_index_size,
                                         &block_meta.col_stats,
                                         column_ids,
                                         &block_meta,
                                     )
                                     .await;
 
+                                println!("keep_by_bloom: {}", keep_by_bloom);
                                 prune_result.keep =
                                     keep_by_bloom && limit_pruner.within_limit(row_count);
                                 if prune_result.keep {
@@ -190,6 +196,20 @@ impl BlockPruner {
                                         pruning_stats.set_blocks_bloom_pruning_after(1);
                                     }
                                 }
+                            } else if let (Some(ngram_pruner), Some(ngram_index_size)) = (ngram_pruner, ngram_index_size) {
+                                // TODO: metrics
+                                let keep_by_ngram = ngram_pruner
+                                    .should_keep(
+                                        &ngram_index_location,
+                                        ngram_index_size,
+                                        &block_meta.col_stats,
+                                        column_ids,
+                                        &block_meta,
+                                    )
+                                    .await;
+                                println!("keep_by_ngram: {}", keep_by_ngram);
+                                prune_result.keep =
+                                    keep_by_ngram && limit_pruner.within_limit(row_count);
                             } else {
                                 prune_result.keep = limit_pruner.within_limit(row_count);
                             }

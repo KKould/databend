@@ -274,27 +274,7 @@ impl BloomIndex {
                 }
             };
 
-            let (column, validity) =
-                Self::calculate_nullable_column_digest(&func_ctx, &column, &data_type)?;
-
-            // create filter per column
-            let mut filter_builder = Xor8Builder::create();
-            if validity.as_ref().map(|v| v.null_count()).unwrap_or(0) > 0 {
-                let validity = validity.unwrap();
-                let it = column.deref().iter().zip(validity.iter()).map(
-                    |(v, b)| {
-                        if !b {
-                            &0
-                        } else {
-                            v
-                        }
-                    },
-                );
-                filter_builder.add_digests(it);
-            } else {
-                filter_builder.add_digests(column.deref());
-            }
-            let filter = filter_builder.build()?;
+            let filter = Self::build_filter(&func_ctx, &column, &data_type)?;
 
             if let Some(len) = filter.len() {
                 if !matches!(field.data_type(), TableDataType::Map(_)) {
@@ -325,6 +305,30 @@ impl BloomIndex {
             filters,
             column_distinct_count,
         }))
+    }
+
+    pub(crate) fn build_filter(func_ctx: &FunctionContext, column: &Column, data_type: &DataType) -> Result<Xor8Filter> {
+        let (column, validity) =
+            Self::calculate_nullable_column_digest(&func_ctx, &column, &data_type)?;
+
+        // create filter per column
+        let mut filter_builder = Xor8Builder::create();
+        if validity.as_ref().map(|v| v.null_count()).unwrap_or(0) > 0 {
+            let validity = validity.unwrap();
+            let it = column.deref().iter().zip(validity.iter()).map(
+                |(v, b)| {
+                    if !b {
+                        &0
+                    } else {
+                        v
+                    }
+                },
+            );
+            filter_builder.add_digests(it);
+        } else {
+            filter_builder.add_digests(column.deref());
+        }
+        Ok(filter_builder.build()?)
     }
 
     pub fn serialize_to_data_block(&self) -> Result<DataBlock> {
@@ -370,7 +374,24 @@ impl BloomIndex {
         column_stats: &StatisticsOfColumns,
         data_schema: TableSchemaRef,
     ) -> Result<(Expr<String>, HashMap<String, Domain>)> {
-        let mut domains = expr
+        let mut domains = Self::rewirte_expr_domains(&mut expr, column_stats, &data_schema);
+
+        let mut visitor = RewriteVisitor {
+            new_col_id: 1,
+            index: self,
+            data_schema,
+            scalar_map,
+            column_stats,
+            domains: &mut domains,
+        };
+
+        visit_expr_column_eq_constant(&mut expr, &mut visitor)?;
+
+        Ok((expr, domains))
+    }
+
+    pub(crate) fn rewirte_expr_domains(expr: &mut Expr<String>, column_stats: &StatisticsOfColumns, data_schema: &TableSchemaRef) -> HashMap<String, Domain> {
+        expr
             .column_refs()
             .into_iter()
             .map(|(id, ty)| {
@@ -405,20 +426,7 @@ impl BloomIndex {
                     .unwrap_or_else(|| Domain::full(&ty));
                 (id, domain)
             })
-            .collect::<HashMap<_, _>>();
-
-        let mut visitor = RewriteVisitor {
-            new_col_id: 1,
-            index: self,
-            data_schema,
-            scalar_map,
-            column_stats,
-            domains: &mut domains,
-        };
-
-        visit_expr_column_eq_constant(&mut expr, &mut visitor)?;
-
-        Ok((expr, domains))
+            .collect::<HashMap<_, _>>()
     }
 
     /// calculate digest for column
@@ -563,7 +571,7 @@ impl BloomIndex {
 
     /// Checks if the average length of a string column exceeds 256 bytes.
     /// If it does, the bloom index for the column will not be established.
-    fn check_large_string(column: &Column) -> bool {
+    pub(crate) fn check_large_string(column: &Column) -> bool {
         if let Column::String(v) = &column {
             let bytes_per_row = v.total_bytes_len() / v.len().max(1);
             if bytes_per_row > 256 {
@@ -574,7 +582,7 @@ impl BloomIndex {
     }
 }
 
-fn visit_expr_column_eq_constant(
+pub(crate) fn visit_expr_column_eq_constant(
     expr: &mut Expr<String>,
     visitor: &mut impl EqVisitor,
 ) -> Result<()> {
@@ -740,9 +748,9 @@ fn visit_expr_column_eq_constant(
     Ok(())
 }
 
-type ResultRewrite = Result<ControlFlow<Option<Expr<String>>, Option<Expr<String>>>>;
+pub(crate) type ResultRewrite = Result<ControlFlow<Option<Expr<String>>, Option<Expr<String>>>>;
 
-trait EqVisitor {
+pub(crate) trait EqVisitor {
     fn enter_target(
         &mut self,
         span: Span,
@@ -854,22 +862,7 @@ impl EqVisitor for RewriteVisitor<'_> {
             has_false: true,
             has_true: false,
         });
-        let new_domain = if return_type.is_nullable() {
-            // generate `has_null` based on the `null_count` in column statistics.
-            let has_null = match self.data_schema.column_id_of(col_name) {
-                Ok(col_id) => match self.column_stats.get(&col_id) {
-                    Some(stat) => stat.null_count > 0,
-                    None => true,
-                },
-                Err(_) => true,
-            };
-            Domain::Nullable(NullableDomain {
-                has_null,
-                value: Some(Box::new(bool_domain)),
-            })
-        } else {
-            bool_domain
-        };
+        let new_domain = domain(&self.data_schema, self.column_stats, col_name, return_type, bool_domain);
         self.domains.insert(new_col_name.clone(), new_domain);
 
         Ok(ControlFlow::Break(Some(Expr::ColumnRef {
@@ -942,10 +935,35 @@ impl EqVisitor for RewriteVisitor<'_> {
     }
 }
 
-struct ShortListVisitor {
-    fields: Vec<TableField>,
-    founds: Vec<TableField>,
-    scalars: Vec<(Scalar, DataType)>,
+pub(crate) fn domain(
+    data_schema: &TableSchemaRef,
+    column_stats: &StatisticsOfColumns,
+    col_name: &str,
+    return_type: &DataType,
+    bool_domain: Domain,
+) -> Domain {
+    if return_type.is_nullable() {
+        // generate `has_null` based on the `null_count` in column statistics.
+        let has_null = match data_schema.column_id_of(col_name) {
+            Ok(col_id) => match column_stats.get(&col_id) {
+                Some(stat) => stat.null_count > 0,
+                None => true,
+            },
+            Err(_) => true,
+        };
+        Domain::Nullable(NullableDomain {
+            has_null,
+            value: Some(Box::new(bool_domain)),
+        })
+    } else {
+        bool_domain
+    }
+}
+
+pub(crate) struct ShortListVisitor {
+    pub(crate) fields: Vec<TableField>,
+    pub(crate) founds: Vec<TableField>,
+    pub(crate) scalars: Vec<(Scalar, DataType)>,
 }
 
 impl ShortListVisitor {

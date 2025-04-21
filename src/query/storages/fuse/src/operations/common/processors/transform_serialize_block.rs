@@ -20,7 +20,7 @@ use databend_common_catalog::table::Table;
 use databend_common_catalog::table_context::TableContext;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
-use databend_common_expression::BlockMetaInfoDowncast;
+use databend_common_expression::{BlockMetaInfoDowncast, TableDataType};
 use databend_common_expression::ComputedExpr;
 use databend_common_expression::DataBlock;
 use databend_common_expression::TableSchema;
@@ -149,6 +149,9 @@ impl TransformSerializeBlock {
         let bloom_columns_map = table
             .bloom_index_cols
             .bloom_index_fields(source_schema.clone(), BloomIndex::supported_type)?;
+        let ngram_columns_map = table
+            .ngram_index_cols
+            .bloom_index_fields(source_schema.clone(), |ty| matches!(ty.remove_nullable(), TableDataType::String))?;
 
         let inverted_index_builders = create_inverted_index_builders(&table.table_info.meta);
 
@@ -159,6 +162,8 @@ impl TransformSerializeBlock {
             write_settings: table.get_write_settings(),
             cluster_stats_gen,
             bloom_columns_map,
+            ngram_columns_map,
+            n: table.n,
             inverted_index_builders,
             table_meta_timestamps,
         };

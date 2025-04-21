@@ -23,6 +23,7 @@
 #![feature(try_blocks)]
 #![feature(downcast_unchecked)]
 #![feature(str_internals)]
+extern crate core;
 
 use aggregates::AggregateFunctionFactory;
 use ctor::ctor;

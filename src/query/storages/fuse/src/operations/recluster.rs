@@ -105,6 +105,7 @@ impl FuseTable {
                 &push_downs,
                 self.get_storage_format(),
                 chunk.to_vec(),
+                self.n
             )
             .await?;
 
@@ -228,6 +229,7 @@ impl FuseTable {
         push_down: &Option<PushDownInfo>,
         storage_format: FuseStorageFormat,
         mut segment_locs: Vec<SegmentLocation>,
+        n: u32,
     ) -> Result<Vec<(SegmentLocation, Arc<CompactSegmentInfo>)>> {
         let max_concurrency = {
             let max_threads = ctx.get_settings().get_max_threads()? as usize;
@@ -243,6 +245,8 @@ impl FuseTable {
 
         // during re-cluster, we do not rebuild missing bloom index
         let bloom_index_builder = None;
+        // during re-cluster, we do not rebuild missing bloom index
+        let ngram_index_builder = None;
         // Only use push_down here.
         let pruning_ctx = PruningContext::try_create(
             ctx,
@@ -252,8 +256,11 @@ impl FuseTable {
             None,
             vec![],
             BloomIndexColumns::None,
+            BloomIndexColumns::None,
+            n,
             max_concurrency,
             bloom_index_builder,
+            ngram_index_builder,
             storage_format,
         )?;
 
