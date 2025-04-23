@@ -152,6 +152,7 @@ impl Filter for Xor8Filter {
 }
 
 impl Index for Xor8Filter {
+    // FIXME
     fn supported_type(data_type: &DataType) -> bool {
         let inner_type = data_type.remove_nullable();
         if let DataType::Map(box inner_ty) = inner_type {

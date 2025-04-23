@@ -24,6 +24,7 @@ use databend_common_expression::types::string::StringDomain;
 use databend_common_expression::types::ArrayType;
 use databend_common_expression::types::NumberType;
 use databend_common_expression::types::StringType;
+use databend_common_expression::types::UInt32Type;
 use databend_common_expression::unify_string;
 use databend_common_expression::vectorize_1_arg;
 use databend_common_expression::vectorize_with_builder_1_arg;
@@ -32,6 +33,7 @@ use databend_common_expression::vectorize_with_builder_3_arg;
 use databend_common_expression::vectorize_with_builder_4_arg;
 use databend_common_expression::FunctionDomain;
 use databend_common_expression::FunctionRegistry;
+use naive_cityhash::cityhash64_with_seeds;
 use stringslice::StringSlice;
 
 pub const ALL_STRING_FUNC_NAMES: &[&str] = &[
@@ -280,6 +282,56 @@ pub fn register(registry: &mut FunctionRegistry) {
                 output.commit_row();
             }),
     );
+
+    registry
+        .register_passthrough_nullable_2_arg::<StringType, UInt32Type, ArrayType<StringType>, _, _>(
+            "ngram",
+            |_, _, _| FunctionDomain::Full,
+            vectorize_with_builder_2_arg::<StringType, UInt32Type, ArrayType<StringType>>(
+                |text, n, output, _| {
+                    let n = n as usize;
+                    text.char_indices()
+                        .zip(text.char_indices().skip(n - 1))
+                        .filter_map(move |((start_idx, _), (end_idx, c))| {
+                            let end = end_idx + c.len_utf8();
+                            if end <= text.len() {
+                                Some(&text[start_idx..end])
+                            } else {
+                                None
+                            }
+                        })
+                        .for_each(|text| {
+                            output.put_item(text);
+                        });
+                    output.commit_row();
+                },
+            ),
+        );
+
+    registry
+        .register_passthrough_nullable_2_arg::<StringType, UInt32Type, ArrayType<NumberType<u64>>, _, _>(
+            "ngram_then_hash",
+            |_, _, _| FunctionDomain::Full,
+            vectorize_with_builder_2_arg::<StringType, UInt32Type, ArrayType<NumberType<u64>>>(
+                |text, n, output, _| {
+                    let n = n as usize;
+                    text.char_indices()
+                        .zip(text.char_indices().skip(n - 1))
+                        .filter_map(move |((start_idx, _), (end_idx, c))| {
+                            let end = end_idx + c.len_utf8();
+                            if end <= text.len() {
+                                Some(&text[start_idx..end])
+                            } else {
+                                None
+                            }
+                        })
+                        .for_each(|text| {
+                            output.put_item(cityhash64_with_seeds(text.as_bytes(), 0, 217728422));
+                        });
+                    output.commit_row();
+                },
+            ),
+        );
 
     registry.register_passthrough_nullable_1_arg::<Decimal128Type, StringType, _, _>(
         "to_uuid",

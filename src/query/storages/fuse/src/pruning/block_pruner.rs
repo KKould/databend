@@ -177,6 +177,7 @@ impl BlockPruner {
                                     )
                                     .await;
 
+                                println!("{}", keep_by_bloom);
                                 prune_result.keep =
                                     keep_by_bloom && limit_pruner.within_limit(row_count);
                                 if prune_result.keep {

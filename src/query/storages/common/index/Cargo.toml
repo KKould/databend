@@ -18,6 +18,7 @@ databend-storages-common-table-meta = { workspace = true }
 
 anyerror = { workspace = true }
 bincode = { workspace = true, features = ["serde"] }
+bloomfilter = { workspace = true, features = ["serde"] }
 cbordata = { workspace = true }
 fastrace = { workspace = true }
 goldenfile = { workspace = true }
@@ -25,6 +26,7 @@ jsonb = { workspace = true }
 levenshtein_automata = { workspace = true }
 log = { workspace = true }
 match-template = { workspace = true }
+naive-cityhash = { workspace = true }
 parquet = { workspace = true }
 roaring = { workspace = true }
 serde = { workspace = true }

@@ -31,6 +31,7 @@ use databend_common_sql::DefaultExprBinder;
 use databend_storages_common_cache::CacheAccessor;
 use databend_storages_common_cache::CacheManager;
 use databend_storages_common_cache::SegmentBlockMetasCache;
+use databend_storages_common_index::NgramArgs;
 use databend_storages_common_index::RangeIndex;
 use databend_storages_common_pruner::BlockMetaIndex;
 use databend_storages_common_pruner::InternalColumnPruner;
@@ -95,6 +96,7 @@ impl PruningContext {
         cluster_key_meta: Option<ClusterKey>,
         cluster_keys: Vec<RemoteExpr<String>>,
         bloom_index_cols: BloomIndexColumns,
+        ngram_args: Vec<NgramArgs>,
         max_concurrency: usize,
         bloom_index_builder: Option<BloomIndexRebuilder>,
         storage_format: FuseStorageFormat,
@@ -151,6 +153,7 @@ impl PruningContext {
             dal.clone(),
             filter_expr.as_ref(),
             bloom_index_cols,
+            ngram_args,
             bloom_index_builder,
         )?;
 
@@ -222,6 +225,7 @@ impl FusePruner {
         table_schema: TableSchemaRef,
         push_down: &Option<PushDownInfo>,
         bloom_index_cols: BloomIndexColumns,
+        ngram_args: Vec<NgramArgs>,
         bloom_index_builder: Option<BloomIndexRebuilder>,
         storage_format: FuseStorageFormat,
     ) -> Result<Self> {
@@ -233,6 +237,7 @@ impl FusePruner {
             None,
             vec![],
             bloom_index_cols,
+            ngram_args,
             bloom_index_builder,
             storage_format,
         )
@@ -247,6 +252,7 @@ impl FusePruner {
         cluster_key_meta: Option<ClusterKey>,
         cluster_keys: Vec<RemoteExpr<String>>,
         bloom_index_cols: BloomIndexColumns,
+        ngram_args: Vec<NgramArgs>,
         bloom_index_builder: Option<BloomIndexRebuilder>,
         storage_format: FuseStorageFormat,
     ) -> Result<Self> {
@@ -273,6 +279,7 @@ impl FusePruner {
             cluster_key_meta,
             cluster_keys,
             bloom_index_cols,
+            ngram_args,
             max_concurrency,
             bloom_index_builder,
             storage_format,
