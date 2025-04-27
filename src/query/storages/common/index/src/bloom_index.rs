@@ -82,7 +82,8 @@ use crate::filters::Xor8Filter;
 use crate::statistics_to_domain;
 use crate::Index;
 
-const NGRAM_HASH_SEED: u64 = 1575457558;
+const NGRAM_HASH_SEED_0: u64 = 0;
+const NGRAM_HASH_SEED_1: u64 = 1575457558;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BloomIndexMeta {
@@ -248,7 +249,7 @@ impl BloomIndex {
     pub fn apply(
         &self,
         expr: Expr<String>,
-        scalar_map: &HashMap<Scalar, u64>,
+        scalar_map: &HashMap<Scalar, Vec<u64>>,
         ngram_args: &[NgramArgs],
         column_stats: &StatisticsOfColumns,
         data_schema: TableSchemaRef,
@@ -269,7 +270,7 @@ impl BloomIndex {
     pub fn rewrite_expr(
         &self,
         expr: Expr<String>,
-        scalar_map: &HashMap<Scalar, u64>,
+        scalar_map: &HashMap<Scalar, Vec<u64>>,
         ngram_args: &[NgramArgs],
         column_stats: &StatisticsOfColumns,
         data_schema: TableSchemaRef,
@@ -406,15 +407,24 @@ impl BloomIndex {
         })
     }
 
-    pub fn ngram_hash(s: &str, bitmap_size: usize) -> u64 {
-        let mut hasher = CityHasher64::with_seed(NGRAM_HASH_SEED);
-        DFHash::hash(s, &mut hasher);
+    pub fn ngram_hash(s: &str, bitmap_size: usize) -> Vec<u64> {
+        let fn_hash = |hash: u64| {
+            if bitmap_size > 0 {
+                hash % bitmap_size as u64
+            } else {
+                hash
+            }
+        };
 
-        if bitmap_size > 0 {
-            hasher.finish() % bitmap_size as u64
-        } else {
-            hasher.finish()
-        }
+        let mut hasher_0 = CityHasher64::with_seed(NGRAM_HASH_SEED_0);
+        DFHash::hash(s, &mut hasher_0);
+        let mut hasher_1 = CityHasher64::with_seed(NGRAM_HASH_SEED_1);
+        DFHash::hash(s, &mut hasher_1);
+
+        let mut vec = Vec::with_capacity(2);
+        vec.push(fn_hash(hasher_0.finish()));
+        vec.push(fn_hash(hasher_1.finish()));
+        vec
     }
 
     /// calculate digest for constant scalar
@@ -490,7 +500,7 @@ impl BloomIndex {
         table_field: &TableField,
         target: &Scalar,
         ty: &DataType,
-        scalar_map: &HashMap<Scalar, u64>,
+        scalar_map: &HashMap<Scalar, Vec<u64>>,
         ngram_args: &[NgramArgs],
         is_like: bool,
     ) -> Result<FilterEvalResult> {
@@ -534,12 +544,12 @@ impl BloomIndex {
             !words.into_iter().any(|word| {
                 scalar_map
                     .get(&Scalar::String(word))
-                    .is_some_and(|digest| !filter.contains_digest(*digest))
+                    .is_some_and(|digests| digests.iter().any(|digest| !filter.contains_digest(*digest)))
             })
         } else {
             scalar_map
                 .get(target)
-                .is_none_or(|digest| filter.contains_digest(*digest))
+                .is_none_or(|digests| digests.iter().all(|digest| filter.contains_digest(*digest)))
         };
 
         if contains {
@@ -780,7 +790,9 @@ impl BloomIndexBuilder {
                 if digests.is_empty() {
                     continue;
                 }
-                index_column.builder.add_digests(digests.iter())
+                for hashes in digests {
+                    index_column.builder.add_digests(hashes.iter())
+                }
             }
         }
         for k in keys_to_remove {
@@ -1104,7 +1116,7 @@ struct RewriteVisitor<'a> {
     new_col_id: usize,
     index: &'a BloomIndex,
     data_schema: TableSchemaRef,
-    scalar_map: &'a HashMap<Scalar, u64>,
+    scalar_map: &'a HashMap<Scalar, Vec<u64>>,
     ngram_args: &'a [NgramArgs],
     column_stats: &'a StatisticsOfColumns,
     domains: &'a mut HashMap<String, Domain>,

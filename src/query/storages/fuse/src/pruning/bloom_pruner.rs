@@ -66,7 +66,7 @@ pub struct BloomPrunerCreator {
     filter_expression: Expr<String>,
 
     /// pre calculated digest for constant Scalar
-    scalar_map: HashMap<Scalar, u64>,
+    scalar_map: HashMap<Scalar, Vec<u64>>,
 
     /// Ngram args aligned with BloomColumn using Ngram
     ngram_args: Vec<NgramArgs>,
@@ -107,11 +107,11 @@ impl BloomPrunerCreator {
         }
 
         // convert to filter column names
-        let mut scalar_map = HashMap::<Scalar, u64>::new();
+        let mut scalar_map = HashMap::<Scalar, Vec<u64>>::new();
         for (_, scalar, ty) in result.bloom_scalars.into_iter() {
             if let Entry::Vacant(e) = scalar_map.entry(scalar) {
                 let digest = BloomIndex::calculate_scalar_digest(&func_ctx, e.key(), &ty)?;
-                e.insert(digest);
+                e.insert(vec![digest]);
             }
         }
         for (i, scalar) in result.ngram_scalars.into_iter() {
