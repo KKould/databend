@@ -279,11 +279,9 @@ fn eval_binary_to_string(val: Value<BinaryType>, ctx: &mut EvalContext) -> Value
     vectorize_binary_to_string(
         |col| col.total_bytes_len(),
         |val, output, ctx| {
-            if let Ok(val) = simdutf8::basic::from_utf8(val) {
-                output.put_str(val);
-            } else {
-                ctx.set_error(output.len(), "invalid utf8 sequence");
-            }
+            // FIXME
+            let cow = String::from_utf8_lossy(val);
+            output.put_str(cow.as_ref());
             output.commit_row();
         },
     )(val, ctx)

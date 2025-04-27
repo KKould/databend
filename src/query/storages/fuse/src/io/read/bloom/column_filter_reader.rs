@@ -23,8 +23,7 @@ use databend_storages_common_cache::CachedObject;
 use databend_storages_common_cache::HybridCacheReader;
 use databend_storages_common_cache::LoadParams;
 use databend_storages_common_cache::Loader;
-use databend_storages_common_index::filters::Filter;
-use databend_storages_common_index::filters::FilterImpl;
+use databend_storages_common_index::filters::{Filter, Xor8Filter};
 use databend_storages_common_table_meta::meta::SingleColumnMeta;
 use opendal::Operator;
 use parquet::arrow::arrow_reader::ParquetRecordBatchReader;
@@ -32,10 +31,10 @@ use parquet::arrow::parquet_to_arrow_field_levels;
 use parquet::arrow::ProjectionMask;
 use parquet::basic::Compression as ParquetCompression;
 use parquet::schema::types::SchemaDescPtr;
-
+use databend_storages_common_index::BloomIndex;
 use crate::io::read::block::parquet::RowGroupImplBuilder;
 
-type CachedReader = HybridCacheReader<FilterImpl, BloomFilterLoader>;
+type CachedReader = HybridCacheReader<Xor8Filter, BloomFilterLoader>;
 
 /// Load the filter of a given bloom index column. Also
 /// - generates the proper cache key
@@ -71,7 +70,7 @@ impl BloomColumnFilterReader {
             column_id,
         };
 
-        let cached_reader = CachedReader::new(FilterImpl::cache(), loader);
+        let cached_reader = CachedReader::new(Xor8Filter::cache(), loader);
 
         let param = LoadParams {
             location: index_path,
@@ -87,7 +86,7 @@ impl BloomColumnFilterReader {
     }
 
     #[async_backtrace::framed]
-    pub async fn read(&self) -> Result<Arc<FilterImpl>> {
+    pub async fn read(&self) -> Result<Arc<Xor8Filter>> {
         self.cached_reader.read(&self.param).await
     }
 }
@@ -104,9 +103,9 @@ pub struct BloomFilterLoader {
 }
 
 #[async_trait::async_trait]
-impl Loader<FilterImpl> for BloomFilterLoader {
+impl Loader<Xor8Filter> for BloomFilterLoader {
     #[async_backtrace::framed]
-    async fn load(&self, params: &LoadParams) -> Result<FilterImpl> {
+    async fn load(&self, params: &LoadParams) -> Result<Xor8Filter> {
         let bytes = self
             .operator
             .read_with(&params.location)
@@ -143,7 +142,7 @@ impl Loader<FilterImpl> for BloomFilterLoader {
             .index(0)
             .unwrap();
         metrics_inc_block_index_read_bytes(filter_bytes.len() as u64);
-        let (filter, _size) = FilterImpl::from_bytes(filter_bytes)?;
+        let (filter, _size) = Xor8Filter::from_bytes(filter_bytes)?;
         Ok(filter)
     }
 

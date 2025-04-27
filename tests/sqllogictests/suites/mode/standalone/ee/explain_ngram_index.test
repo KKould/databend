@@ -22,16 +22,20 @@ statement ok
 USE test_ngram_index_db
 
 statement ok
-DROP TABLE IF EXISTS t1
+DROP TABLE IF EXISTS t1_en
 
 statement ok
-CREATE TABLE t1 (id int, content string) row_per_block=2 storage_format='parquet'
+DROP TABLE IF EXISTS t1_cn
+
+# TODO: t1_cn t2_cn
+statement ok
+CREATE TABLE t1_en (id int, content string) row_per_block=2 storage_format='parquet'
 
 statement ok
-CREATE NGRAM INDEX IF NOT EXISTS idx1 ON t1(content)
+CREATE NGRAM INDEX IF NOT EXISTS idx1 ON t1_en(content)
 
 statement ok
-INSERT INTO t1 VALUES
+INSERT INTO t1_en VALUES
 (1, 'The quick brown fox jumps over the lazy dog'),
 (2, 'A picture is worth a thousand words'),
 (3, 'The early bird catches the worm'),
@@ -44,25 +48,44 @@ INSERT INTO t1 VALUES
 (10, 'An apple a day keeps the doctor away')
 
 query T
-EXPLAIN SELECT id, content FROM t1 WHERE content LIKE '%your eggs%'
+EXPLAIN SELECT id, content FROM t1_en WHERE content LIKE '%yo%'
 ----
 Filter
-├── output columns: [t1.id (#0), t1.content (#1)]
-├── filters: [is_true(like(t1.content (#1), '%your eggs%'))]
+├── output columns: [t1_en.id (#0), t1_en.content (#1)]
+├── filters: [is_true(like(t1_en.content (#1), '%yo%'))]
+├── estimated rows: 5.00
+└── TableScan
+    ├── table: default.test_ngram_index_db.t1_en
+    ├── output columns: [id (#0), content (#1)]
+    ├── read rows: 10
+    ├── read size: < 1 KiB
+    ├── partitions total: 5
+    ├── partitions scanned: 5
+    ├── pruning stats: [segments: <range pruning: 1 to 1>, blocks: <range pruning: 5 to 5, bloom pruning: 5 to 5>]
+    ├── push downs: [filters: [is_true(like(t1_en.content (#1), '%yo%'))], limit: NONE]
+    └── estimated rows: 10.00
+
+
+query T
+EXPLAIN SELECT id, content FROM t1_en WHERE content LIKE '%your eggs%'
+----
+Filter
+├── output columns: [t1_en.id (#0), t1_en.content (#1)]
+├── filters: [is_true(like(t1_en.content (#1), '%your eggs%'))]
 ├── estimated rows: 0.04
 └── TableScan
-    ├── table: default.test_ngram_index_db.t1
+    ├── table: default.test_ngram_index_db.t1_en
     ├── output columns: [id (#0), content (#1)]
     ├── read rows: 2
     ├── read size: < 1 KiB
     ├── partitions total: 5
     ├── partitions scanned: 1
     ├── pruning stats: [segments: <range pruning: 1 to 1>, blocks: <range pruning: 5 to 5, bloom pruning: 5 to 1>]
-    ├── push downs: [filters: [is_true(like(t1.content (#1), '%your eggs%'))], limit: NONE]
+    ├── push downs: [filters: [is_true(like(t1_en.content (#1), '%your eggs%'))], limit: NONE]
     └── estimated rows: 10.00
 
 query T
-SELECT id, content FROM t1 WHERE content LIKE '%your eggs%'
+SELECT id, content FROM t1_en WHERE content LIKE '%your eggs%'
 ----
 8 Put all your eggs in one basket
 
@@ -103,9 +126,81 @@ TableScan
 └── estimated rows: 0.04
 
 query T
-SELECT id, content FROM t1 WHERE content LIKE '%your eggs%'
+SELECT id, content FROM t1_en WHERE content LIKE '%your eggs%'
 ----
 8 Put all your eggs in one basket
+
+query T
+EXPLAIN SELECT id, content FROM t2 WHERE content LIKE '%yo%'
+----
+TableScan
+├── table: default.test_ngram_index_db.t2
+├── output columns: [id (#0), content (#1)]
+├── read rows: 10
+├── read size: < 1 KiB
+├── partitions total: 5
+├── partitions scanned: 5
+├── pruning stats: [segments: <range pruning: 1 to 1>, blocks: <range pruning: 5 to 5, bloom pruning: 5 to 5>]
+├── push downs: [filters: [is_true(like(t2.content (#1), '%yo%'))], limit: NONE]
+└── estimated rows: 5.00
+
+# Tests whether the ngram index with the same column and the same parameters
+# will use the old index after the column is removed
+statement ok
+DROP ngram INDEX idx1 ON t2
+
+statement ok
+ALTER TABLE t2 DROP COLUMN content;
+
+statement ok
+ALTER TABLE t2 ADD COLUMN content string;
+
+statement ok
+INSERT INTO t2 VALUES
+(11, 'The quick brown fox jumps over the lazy dog'),
+(12, 'A picture is worth a thousand words'),
+(13, 'The early bird catches the worm'),
+(14, 'Actions speak louder than words'),
+(15, 'Time flies like an arrow; fruit flies like a banana'),
+(16, 'Beauty is in the eye of the beholder'),
+(17, 'When life gives you lemons, make lemonade'),
+(18, 'Put all your eggs in one basket'),
+(19, 'You can not judge a book by its cover'),
+(20, 'An apple a day keeps the doctor away')
+
+query T
+EXPLAIN SELECT id, content FROM t2 WHERE content LIKE '%your eggs%'
+----
+TableScan
+├── table: default.test_ngram_index_db.t2
+├── output columns: [id (#0), content (#1)]
+├── read rows: 10
+├── read size: < 1 KiB
+├── partitions total: 2
+├── partitions scanned: 5
+├── pruning stats: [segments: <range pruning: 2 to 2>, blocks: <range pruning: 10 to 5>]
+├── push downs: [filters: [is_true(like(t2.content (#1), '%your eggs%'))], limit: NONE]
+└── estimated rows: 0.08
+
+statement ok
+CREATE NGRAM INDEX IF NOT EXISTS idx1 ON t2(content)
+
+statement ok
+INSERT INTO t2 VALUES (21, 'The Anthem of man is the Anthem of courage')
+
+query T
+EXPLAIN SELECT id, content FROM t2 WHERE content LIKE '%your eggs%'
+----
+TableScan
+├── table: default.test_ngram_index_db.t2
+├── output columns: [id (#0), content (#1)]
+├── read rows: 10
+├── read size: < 1 KiB
+├── partitions total: 3
+├── partitions scanned: 5
+├── pruning stats: [segments: <range pruning: 3 to 3>, blocks: <range pruning: 11 to 6, bloom pruning: 6 to 5>]
+├── push downs: [filters: [is_true(like(t2.content (#1), '%your eggs%'))], limit: NONE]
+└── estimated rows: 0.08
 
 statement ok
 USE default

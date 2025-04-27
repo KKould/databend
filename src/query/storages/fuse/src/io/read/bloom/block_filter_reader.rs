@@ -30,7 +30,6 @@ use databend_common_expression::TableDataType;
 use databend_common_expression::TableField;
 use databend_common_expression::TableSchema;
 use databend_storages_common_cache::LoadParams;
-use databend_storages_common_index::filters::FilterImpl;
 use databend_storages_common_index::BloomIndexMeta;
 use databend_storages_common_table_meta::meta::Location;
 use databend_storages_common_table_meta::meta::SingleColumnMeta;
@@ -38,7 +37,7 @@ use futures_util::future::try_join_all;
 use opendal::Operator;
 use parquet::arrow::ArrowSchemaConverter;
 use parquet::schema::types::SchemaDescPtr;
-
+use databend_storages_common_index::filters::Xor8Filter;
 use crate::index::filters::BlockBloomFilterIndexVersion;
 use crate::index::filters::BlockFilter;
 use crate::io::read::bloom::column_filter_reader::BloomColumnFilterReader;
@@ -154,7 +153,7 @@ async fn load_column_bloom_filter<'a>(
     index_path: &'a str,
     dal: &'a Operator,
     bloom_index_schema_desc: SchemaDescPtr,
-) -> Result<Arc<FilterImpl>> {
+) -> Result<Arc<Xor8Filter>> {
     let storage_runtime = GlobalIORuntime::instance();
     let bytes = {
         let column_data_reader = BloomColumnFilterReader::new(
