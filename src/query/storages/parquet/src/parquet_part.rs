@@ -32,6 +32,10 @@ pub enum ParquetPart {
     File(ParquetFilePart),
     SmallFiles(Vec<ParquetFilePart>),
     RowGroup(ParquetRowGroupPart),
+    FileWithDeletes{
+        inner: ParquetFilePart,
+        deletes: Vec<ParquetFilePart>,
+    },
 }
 
 impl ParquetPart {

@@ -16,12 +16,12 @@ use std::any::Any;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::sync::Arc;
-
+use arrow_array::{StringArray, Int64Array};
 use arrow_schema::Schema;
 use async_trait::async_trait;
 use chrono::Utc;
 use databend_common_catalog::catalog::StorageDescription;
-use databend_common_catalog::plan::DataSourcePlan;
+use databend_common_catalog::plan::{DataSourcePlan, PartInfo, PartInfoPtr};
 use databend_common_catalog::plan::InternalColumnType;
 use databend_common_catalog::plan::ParquetReadOptions;
 use databend_common_catalog::plan::PartStatistics;
@@ -51,14 +51,17 @@ use databend_common_pipeline_core::Pipeline;
 use databend_common_pipeline_transforms::processors::TransformPipelineHelper;
 use databend_common_storages_orc::ORCSource;
 use databend_common_storages_orc::StripeDecoder;
-use databend_common_storages_parquet::ParquetReaderBuilder;
+use databend_common_storages_parquet::{build_parquet_stream, ParquetReaderBuilder};
 use databend_common_storages_parquet::ParquetSource;
 use databend_common_storages_parquet::ParquetSourceType;
 use databend_storages_common_table_meta::table::ChangeType;
-use futures::TryStreamExt;
-use iceberg::arrow::schema_to_arrow_schema;
-use iceberg::io::FileIOBuilder;
-
+use futures::{try_join, StreamExt, TryStreamExt};
+use futures::stream::BoxStream;
+use iceberg::arrow::{schema_to_arrow_schema, ArrowFileReader, ArrowReader};
+use iceberg::ErrorKind;
+use iceberg::io::{FileIO, FileIOBuilder, FileRead};
+use iceberg::scan::ArrowRecordBatchStream;
+use iceberg::spec::DataContentType;
 use crate::partition::convert_file_scan_task;
 use crate::predicate::PredicateBuilder;
 use crate::statistics;
@@ -418,6 +421,7 @@ impl IcebergTable {
         }
 
         let tasks: Vec<_> = scan
+            .with_delete_file_processing_enabled(true)
             .build()
             .map_err(|err| ErrorCode::Internal(format!("iceberg table scan build: {err:?}")))?
             .plan_files()
@@ -426,18 +430,61 @@ impl IcebergTable {
             .try_collect()
             .await
             .map_err(|err| ErrorCode::Internal(format!("iceberg table scan collect: {err:?}")))?;
+        println!("{:#?}", tasks);
 
         let mut read_rows = 0;
         let mut read_bytes = 0;
         let total_files = tasks.len();
-        let parts: Vec<_> = tasks
-            .into_iter()
-            .map(|v: iceberg::scan::FileScanTask| {
-                read_rows += v.record_count.unwrap_or_default() as usize;
-                read_bytes += v.length as usize;
-                Arc::new(convert_file_scan_task(v))
-            })
-            .collect();
+        let mut parts: Vec<PartInfoPtr> = Vec::with_capacity(total_files);
+
+        for task in tasks {
+            read_rows += task.record_count.unwrap_or_default() as usize;
+            read_bytes += task.length as usize;
+            let mut position_map: HashMap<String, Vec<u64>> = HashMap::with_capacity(task.deletes.len());
+
+            for delete_file in task.deletes.iter() {
+                match delete_file.file_type {
+                    DataContentType::Data => {}
+                    DataContentType::PositionDeletes => {
+                        let reader = Self::parquet_to_batch_stream(self.table.file_io().clone(), &delete_file.file_path).await?;
+                        
+                        // Create the record batch stream builder, which wraps the parquet file reader
+                        let stream = build_parquet_stream(reader).await?
+                            .map_err(|e| iceberg::Error::new(ErrorKind::Unexpected, format!("{}", e)));
+
+                        // println!("{:#?}", stream.next().await);
+                        // println!("{:#?}", stream.next().await);
+                        // println!("{:#?}", stream.next().await);
+                        
+                        // while let Some(batch) = stream.next().await {
+                        //     let batch = batch.map_err(|err| ErrorCode::Internal(format!("iceberg table scan delete file parse: {err:?}")))?;
+                        //     let columns = batch.columns();
+                        // 
+                        //     let Some(file_paths) = columns[0].as_any().downcast_ref::<StringArray>() else {
+                        //         return Err(ErrorCode::Internal("Could not downcast file paths array to StringArray"));
+                        //     };
+                        //     let Some(positions) = columns[1].as_any().downcast_ref::<Int64Array>() else {
+                        //         return Err(ErrorCode::Internal("Could not downcast positions array to Int64Array"));
+                        //     };
+                        // 
+                        //     for (file_path, pos) in file_paths.iter().zip(positions.iter()) {
+                        //         let (Some(file_path), Some(pos)) = (file_path, pos) else {
+                        //             return Err(ErrorCode::Internal("null values in delete file"));
+                        //         };
+                        // 
+                        //         position_map
+                        //             .entry(file_path.to_string())
+                        //             .or_default()
+                        //             .push(pos as u64);
+                        //     }
+                        // }
+                    }
+                    DataContentType::EqualityDeletes => {}
+                }
+            }
+            parts.push(Arc::new(convert_file_scan_task(task)))
+        }
+        println!("lll");
 
         Ok((
             PartStatistics::new_exact(read_rows, read_bytes, parts.len(), total_files),
@@ -509,6 +556,22 @@ impl IcebergTable {
         let fields = schema.fields().iter().map(visit_field).collect::<Vec<_>>();
 
         Schema::new(fields).with_metadata(schema.metadata().clone())
+    }
+
+    pub(crate) async fn parquet_to_batch_stream(
+        file_io: FileIO,
+        data_file_path: &str,
+    ) -> Result<ArrowFileReader<impl FileRead>> {
+        // Get the metadata for the Parquet file we need to read and build
+        // a reader for the data within
+        let parquet_file = file_io.new_input(data_file_path).unwrap();
+        let parquet_metadata = parquet_file.metadata().await.unwrap();
+        let parquet_reader = parquet_file.reader().await.unwrap();
+        
+        Ok(ArrowFileReader::new(parquet_metadata, parquet_reader)
+           .with_preload_column_index(true)
+           .with_preload_offset_index(true)
+           .with_preload_page_index(false))
     }
 }
 

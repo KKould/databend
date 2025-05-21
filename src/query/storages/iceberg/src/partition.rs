@@ -28,6 +28,10 @@ pub(crate) fn convert_file_scan_task(task: iceberg::scan::FileScanTask) -> Box<d
             Box::new(part)
         }
         DataFileFormat::Parquet => {
+            // for delete_file in task.deletes {
+            //     delete_file.file_path
+            // }
+            
             let file = ParquetFilePart {
                 file: task.data_file_path.clone(),
                 compressed_size: task.length,

@@ -53,3 +53,4 @@ pub use parquet_table::ParquetTable;
 pub use pruning::ParquetPruner;
 pub use source::ParquetSource;
 pub use source::ParquetSourceType;
+pub use utils::build_parquet_stream;

@@ -17,7 +17,7 @@
 
 services:
   rest:
-    image: tabulario/iceberg-rest:1.6.0
+    image: apache/iceberg-rest-fixture
     container_name: iceberg-rest
     network_mode: "host"
     environment:
@@ -51,6 +51,7 @@ services:
     command: ["server", "/data", "--console-address", ":9001"]
     ports:
       - "9000:9000"
+      - "9001:9001"
 
   mc:
     depends_on:

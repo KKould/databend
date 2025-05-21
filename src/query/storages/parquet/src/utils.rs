@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use std::sync::Arc;
-
+use parquet::arrow::arrow_reader::ArrowReaderOptions;
+use parquet::arrow::async_reader::{AsyncFileReader, ParquetRecordBatchStream};
+use parquet::arrow::ParquetRecordBatchStreamBuilder;
 use databend_common_base::runtime::GLOBAL_MEM_STAT;
 use databend_common_catalog::plan::DataSourcePlan;
 use databend_common_catalog::table_context::TableContext;
@@ -82,4 +84,13 @@ pub(crate) fn calc_parallelism(
         available_memory={available_memory}"
     );
     Ok(parall_limit)
+}
+
+pub async fn build_parquet_stream<T: AsyncFileReader + Send + 'static>(input: T) -> Result<ParquetRecordBatchStream<T>> {
+    Ok(ParquetRecordBatchStreamBuilder::new_with_options(
+        input,
+        ArrowReaderOptions::new(),
+    )
+        .await?
+        .build()?)
 }
