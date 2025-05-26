@@ -13,10 +13,10 @@
 // limitations under the License.
 
 use databend_common_catalog::plan::PartInfo;
-use databend_common_storages_parquet::ParquetFilePart;
+use databend_common_storages_parquet::{DeleteTask, DeleteType, ParquetFilePart};
 use databend_common_storages_parquet::ParquetPart;
 use databend_storages_common_stage::SingleFilePartition;
-use iceberg::spec::DataFileFormat;
+use iceberg::spec::{DataContentType, DataFileFormat};
 
 pub(crate) fn convert_file_scan_task(task: iceberg::scan::FileScanTask) -> Box<dyn PartInfo> {
     match task.data_file_format {
@@ -42,7 +42,18 @@ pub(crate) fn convert_file_scan_task(task: iceberg::scan::FileScanTask) -> Box<d
                     deletes: task
                         .deletes
                         .iter()
-                        .map(|file| file.file_path.clone())
+                        .filter_map(|file| {
+                            let ty = match file.file_type {
+                                DataContentType::Data => return None,
+                                DataContentType::PositionDeletes => DeleteType::Position,
+                                DataContentType::EqualityDeletes => DeleteType::Equality,
+                            };
+                            Some(DeleteTask {
+                                path: file.file_path.clone(),
+                                ty,
+                                equality_ids: file.equality_ids.clone(),
+                            })
+                        })
                         .collect(),
                 })
             } else {
