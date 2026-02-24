@@ -215,20 +215,13 @@ impl TransformRecursiveCteSource {
 
 fn make_rcte_prefix(query_id: &str) -> String {
     // Keep it readable and safe as an identifier.
-    // Use enough entropy to be effectively unique for concurrent queries.
-    let mut short = String::with_capacity(32);
-    for ch in query_id.chars() {
-        if ch.is_ascii_alphanumeric() {
-            short.push(ch);
-        }
-        if short.len() >= 32 {
-            break;
-        }
-    }
-    if short.is_empty() {
-        short.push_str("unknown");
-    }
-    format!("__rcte_{short}_")
+    // Preserve full query-id entropy to avoid collisions across concurrent queries.
+    let suffix = if query_id.is_empty() {
+        "unknown"
+    } else {
+        query_id
+    };
+    format!("__rcte_{suffix}_")
 }
 
 fn rewrite_assign_and_strip_recursive_cte(
