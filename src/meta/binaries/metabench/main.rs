@@ -30,8 +30,7 @@ use chrono::Utc;
 use clap::Parser;
 use databend_common_meta_api::DatabaseApi;
 use databend_common_meta_api::TableApi;
-use databend_common_meta_api::serialize_struct;
-use databend_common_meta_api::txn_op_put;
+use databend_common_meta_api::txn_put_pb_with_ttl;
 use databend_common_meta_app::schema::CreateDatabaseReq;
 use databend_common_meta_app::schema::CreateOption;
 use databend_common_meta_app::schema::CreateTableReq;
@@ -43,23 +42,22 @@ use databend_common_meta_app::schema::TableNameIdent;
 use databend_common_meta_app::schema::UpsertTableOptionReq;
 use databend_common_meta_app::schema::database_name_ident::DatabaseNameIdent;
 use databend_common_meta_app::tenant::Tenant;
-use databend_common_meta_client::MetaGrpcClient;
-use databend_common_meta_client::required;
-use databend_common_meta_kvapi::kvapi::KVApi;
-use databend_common_meta_runtime_api::SpawnApi;
-use databend_common_meta_semaphore::Semaphore;
 use databend_common_meta_store::MetaStore;
-use databend_common_meta_types::MatchSeq;
-use databend_common_meta_types::Operation;
-use databend_common_meta_types::TxnRequest;
-use databend_common_meta_types::UpsertKV;
 use databend_common_tracing::FileConfig;
 use databend_common_tracing::LogFormat;
 use databend_common_tracing::StderrConfig;
 use databend_common_tracing::init_logging;
-use databend_common_version::BUILD_INFO;
 use databend_common_version::METASRV_COMMIT_VERSION;
+use databend_meta_client::DEFAULT_GRPC_MESSAGE_SIZE;
+use databend_meta_client::MetaGrpcClient;
+use databend_meta_kvapi::kvapi::KVApi;
+use databend_meta_plugin_semaphore::Semaphore;
 use databend_meta_runtime::DatabendRuntime;
+use databend_meta_runtime_api::SpawnApi;
+use databend_meta_types::MatchSeq;
+use databend_meta_types::Operation;
+use databend_meta_types::TxnRequest;
+use databend_meta_types::UpsertKV;
 use futures::TryStreamExt;
 use serde::Deserialize;
 use serde::Serialize;
@@ -131,13 +129,12 @@ async fn main() {
 
     let client_handle = MetaGrpcClient::try_create_with_features(
         vec![config.grpc_api_address.clone()],
-        BUILD_INFO.semver(),
         "root",
         "xxx",
         None,
         None,
         None,
-        required::read_write(),
+        DEFAULT_GRPC_MESSAGE_SIZE,
     )
     .unwrap();
     let client = MetaStore::R(client_handle);
@@ -348,11 +345,12 @@ async fn benchmark_table_copy_file(
             last_modified: Some(Utc::now()),
         };
 
-        let put_op = txn_op_put(
+        let put_op = txn_put_pb_with_ttl(
             &copied_file_ident,
-            serialize_struct(&copied_file_value).unwrap(),
+            &copied_file_value,
+            param.ttl_ms.map(Duration::from_millis),
         )
-        .with_ttl(param.ttl_ms.map(Duration::from_millis));
+        .unwrap();
 
         txn.if_then.push(put_op);
     }

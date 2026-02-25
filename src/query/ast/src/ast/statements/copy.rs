@@ -27,6 +27,7 @@ use url::Url;
 
 use crate::ParseError;
 use crate::Result;
+use crate::ast::Expr;
 use crate::ast::Hint;
 use crate::ast::Identifier;
 use crate::ast::Query;
@@ -139,15 +140,17 @@ impl Display for CopyIntoTableStmt {
 )]
 pub struct CopyIntoTableOptions {
     pub on_error: OnErrorMode,
-    pub size_limit: usize,
     pub max_files: usize,
-    pub split_size: usize,
     pub force: bool,
     pub purge: bool,
     pub disable_variant_check: bool,
     pub return_failed_only: bool,
-    pub validation_mode: String,
     pub column_match_mode: Option<ColumnMatchMode>,
+
+    // not used for now
+    pub size_limit: usize,
+    pub split_size: usize,
+    pub validation_mode: String,
 }
 
 impl CopyIntoTableOptions {
@@ -269,6 +272,7 @@ pub struct CopyIntoLocationStmt {
     pub hints: Option<Hint>,
     pub src: CopyIntoLocationSource,
     pub dst: FileLocation,
+    pub partition_by: Option<Expr>,
     pub file_format: FileFormatOptions,
     pub options: CopyIntoLocationOptions,
 }
@@ -284,6 +288,9 @@ impl Display for CopyIntoLocationStmt {
         }
         write!(f, " INTO {}", self.dst)?;
         write!(f, " FROM {}", self.src)?;
+        if let Some(partition_by) = &self.partition_by {
+            write!(f, " PARTITION BY ({partition_by})")?;
+        }
 
         if !self.file_format.is_empty() {
             write!(f, " FILE_FORMAT = ({})", self.file_format)?;

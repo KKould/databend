@@ -308,7 +308,7 @@ impl InterpreterFactory {
                 *copy_plan.clone(),
             )?)),
             Plan::CopyIntoLocation(copy_plan) => Ok(Arc::new(
-                CopyIntoLocationInterpreter::try_create(ctx, copy_plan.clone())?,
+                CopyIntoLocationInterpreter::try_create(ctx, *copy_plan.clone())?,
             )),
             // catalogs
             Plan::ShowCreateCatalog(plan) => Ok(Arc::new(

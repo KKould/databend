@@ -272,7 +272,7 @@ impl SessionPrivilegeManager for SessionPrivilegeManagerImpl<'_> {
             Some(auth_role) => vec![auth_role],
             None => {
                 let current_user = self.get_current_user()?;
-                let mut roles = current_user.grants.roles();
+                let mut roles: Vec<String> = current_user.grants.roles_vec();
                 if let Some(current_role) = self.get_current_role() {
                     roles.push(current_role.name);
                 }
@@ -428,6 +428,12 @@ impl SessionPrivilegeManager for SessionPrivilegeManagerImpl<'_> {
                         user_api
                             .role_api(&self.session_ctx.get_current_tenant())
                             .list_warehouse_ownerships()
+                            .await?
+                    }
+                    Object::Procedure => {
+                        user_api
+                            .role_api(&self.session_ctx.get_current_tenant())
+                            .list_procedure_ownerships()
                             .await?
                     }
                 };

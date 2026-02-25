@@ -24,9 +24,9 @@ use databend_common_exception::Result;
 use databend_common_expression::DataBlock;
 use databend_common_expression::FromData;
 use databend_common_expression::types::StringType;
-use databend_common_meta_semaphore::acquirer::Permit;
 use databend_common_meta_store::MetaStoreProvider;
 use databend_common_sql::Planner;
+use databend_meta_plugin_semaphore::acquirer::Permit;
 use databend_meta_runtime::DatabendRuntime;
 use futures_util::StreamExt;
 
@@ -71,8 +71,7 @@ impl ExplainPerfInterpreter {
 
     pub async fn acquire_semaphore(&self) -> Result<Permit> {
         let config = GlobalConfig::instance();
-        let version = GlobalConfig::version();
-        let meta_conf = config.meta.to_meta_grpc_client_conf(version.semver());
+        let meta_conf = config.meta.to_meta_grpc_client_conf();
         let meta_store = MetaStoreProvider::new(meta_conf)
             .create_meta_store::<DatabendRuntime>()
             .await

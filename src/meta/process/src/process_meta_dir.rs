@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use databend_common_meta_raft_store::key_spaces::RaftStoreEntry;
-use databend_common_meta_sled_store::init_get_sled_db;
+use databend_meta_raft_store::key_spaces::RaftStoreEntry;
+use databend_meta_sled_store::init_get_sled_db;
 
 /// Rewrite protobuf encoded logs and applied record in a sled db.
 ///
@@ -51,8 +51,7 @@ where F: Fn(RaftStoreEntry) -> Result<Option<RaftStoreEntry>, anyhow::Error> {
             converted.len()
         );
 
-        for (v1_ent, v2_ent) in converted {
-            let _ = v1_ent;
+        for (_v1_ent, v2_ent) in converted {
             let (k, v) = RaftStoreEntry::serialize(&v2_ent)?;
             tree.insert(k, v)?;
         }

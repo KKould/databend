@@ -354,6 +354,12 @@ SELECT * from s;"#,
         r#"ALTER DATABASE IF EXISTS ctl.c RENAME TO a;"#,
         r#"ALTER DATABASE c RENAME TO a;"#,
         r#"ALTER DATABASE c set tag tag1='a';"#,
+        r#"ALTER VIEW v SET TAG tag1 = 'val1';"#,
+        r#"ALTER VIEW IF EXISTS db.v UNSET TAG tag1;"#,
+        r#"ALTER FUNCTION my_udf SET TAG tag1 = 'val1';"#,
+        r#"ALTER FUNCTION IF EXISTS my_udf UNSET TAG tag1;"#,
+        r#"ALTER PROCEDURE my_proc(INT, STRING) SET TAG tag1 = 'val1';"#,
+        r#"ALTER PROCEDURE IF EXISTS my_proc() UNSET TAG tag1;"#,
         r#"ALTER DATABASE ctl.c RENAME TO a;"#,
         r#"ALTER DATABASE ctl.c refresh cache;"#,
         r#"VACUUM TABLE t;"#,
@@ -488,6 +494,12 @@ SELECT * from s;"#,
                     record_delimiter = '\n'
                     skip_header = 1
                 );
+        "#,
+        r#"
+            COPY INTO @my_stage/partitioned
+                FROM mytable
+                PARTITION BY (concat('p=', to_varchar(id)))
+                FILE_FORMAT = (type = PARQUET);
         "#,
         r#"
             COPY INTO mytable
@@ -1089,6 +1101,7 @@ fn test_statement_error() {
         r#"REVOKE SELECT, CREATE ON * TO 'test-grant';"#,
         r#"COPY INTO mytable FROM 's3://bucket' CONECTION= ();"#, // typos:disable-line
         r#"COPY INTO mytable FROM @mystage CONNECTION = ();"#,
+        r#"COPY INTO @stage/path FROM mytable PARTITION BY concat('p=', id);"#,
         r#"CALL system$test"#,
         r#"CALL system$test(a"#,
         r#"show settings ilike 'enable%'"#,

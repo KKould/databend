@@ -335,7 +335,7 @@ pub enum Plan {
     },
 
     CopyIntoTable(Box<CopyIntoTablePlan>),
-    CopyIntoLocation(CopyIntoLocationPlan),
+    CopyIntoLocation(Box<CopyIntoLocationPlan>),
 
     // Views
     CreateView(Box<CreateViewPlan>),
@@ -588,6 +588,7 @@ impl Plan {
             Plan::CopyIntoLocation(plan) => plan.schema(),
             Plan::CreateTask(plan) => plan.schema(),
             Plan::DescribeTask(plan) => plan.schema(),
+            Plan::RefreshVirtualColumn(plan) => plan.schema(),
             Plan::ShowTasks(plan) => plan.schema(),
             Plan::ExecuteTask(plan) => plan.schema(),
             Plan::DescRowAccessPolicy(plan) => plan.schema(),

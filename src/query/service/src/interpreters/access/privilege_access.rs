@@ -42,7 +42,6 @@ use databend_common_meta_app::principal::UserPrivilegeSet;
 use databend_common_meta_app::principal::UserPrivilegeType;
 use databend_common_meta_app::row_access_policy::RowAccessPolicyNameIdent;
 use databend_common_meta_app::tenant::Tenant;
-use databend_common_meta_types::SeqV;
 use databend_common_sql::Planner;
 use databend_common_sql::binder::MutationType;
 use databend_common_sql::plans::InsertInputSource;
@@ -56,6 +55,7 @@ use databend_common_users::BUILTIN_ROLE_ACCOUNT_ADMIN;
 use databend_common_users::RoleCacheManager;
 use databend_common_users::UserApiProvider;
 use databend_enterprise_resources_management::ResourcesManagement;
+use databend_meta_types::SeqV;
 use databend_storages_common_table_meta::table::OPT_KEY_TEMP_PREFIX;
 
 use crate::history_tables::session::get_history_log_user;
@@ -630,6 +630,21 @@ impl PrivilegeAccess {
                     UserPrivilegeType::AccessConnection,
                 )
                 .await
+            }
+            TagSetObject::View(target) => {
+                self.validate_table_access(
+                    &target.catalog,
+                    &target.database,
+                    &target.view,
+                    UserPrivilegeType::Alter,
+                    target.if_exists,
+                    false,
+                )
+                .await
+            }
+            TagSetObject::UDF(_) | TagSetObject::Procedure(_) => {
+                self.validate_access(&GrantObject::Global, UserPrivilegeType::Alter, false, false)
+                    .await
             }
         }
     }
@@ -2236,8 +2251,9 @@ async fn has_priv(
         }
     }
 
+    let grant_set_roles: Vec<String> = grant_set.roles_vec();
     Ok(RoleCacheManager::instance()
-        .find_related_roles(tenant, &grant_set.roles())
+        .find_related_roles(tenant, &grant_set_roles)
         .await?
         .into_iter()
         .map(|role| role.grants)

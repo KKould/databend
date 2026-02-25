@@ -13,19 +13,19 @@
 // limitations under the License.
 
 use anyhow::Error;
-use databend_common_meta_raft_store::key_spaces::RaftStoreEntry;
-use databend_common_meta_types::Cmd;
-use databend_common_meta_types::LogEntry;
-use databend_common_meta_types::Operation;
-use databend_common_meta_types::SeqV;
-use databend_common_meta_types::TxnCondition;
-use databend_common_meta_types::TxnOp;
-use databend_common_meta_types::TxnPutRequest;
-use databend_common_meta_types::TxnRequest;
-use databend_common_meta_types::UpsertKV;
-use databend_common_meta_types::raft_types::Entry;
-use databend_common_meta_types::txn_condition::Target;
-use databend_common_meta_types::txn_op::Request;
+use databend_meta_raft_store::key_spaces::RaftStoreEntry;
+use databend_meta_types::Cmd;
+use databend_meta_types::LogEntry;
+use databend_meta_types::Operation;
+use databend_meta_types::SeqV;
+use databend_meta_types::TxnCondition;
+use databend_meta_types::TxnOp;
+use databend_meta_types::TxnPutRequest;
+use databend_meta_types::TxnRequest;
+use databend_meta_types::UpsertKV;
+use databend_meta_types::raft_types::Entry;
+use databend_meta_types::txn_condition::Target;
+use databend_meta_types::txn_op::Request;
 use openraft::EntryPayload;
 
 use crate::process::Process;
@@ -187,9 +187,10 @@ where F: Fn(&str, Vec<u8>) -> Result<Vec<u8>, anyhow::Error>
     }
 
     fn proc_condition(&self, c: TxnCondition) -> TxnCondition {
-        if let Some(Target::Value(_)) = &c.target {
-            unreachable!("we has never used value");
-        }
+        debug_assert!(
+            !matches!(&c.target, Some(Target::Value(_))),
+            "we have never used value"
+        );
         c
     }
 

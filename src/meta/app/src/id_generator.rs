@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use databend_common_meta_kvapi::kvapi;
+use databend_meta_kvapi::kvapi;
 
 pub(crate) const ID_GEN_GENERIC: &str = "generic";
 pub(crate) const ID_GEN_TABLE: &str = "table_id";
@@ -43,89 +43,69 @@ pub struct IdGenerator {
 }
 
 impl IdGenerator {
+    pub fn new(resource: &'static str) -> Self {
+        Self {
+            resource: resource.to_string(),
+        }
+    }
+
     /// Create a key for generating generic id
     pub fn generic() -> Self {
-        Self {
-            resource: ID_GEN_GENERIC.to_string(),
-        }
+        Self::new(ID_GEN_GENERIC)
     }
 
     /// Create a key for generating table id with kvapi::KVApi
     pub fn table_id() -> Self {
-        Self {
-            resource: ID_GEN_TABLE.to_string(),
-        }
+        Self::new(ID_GEN_TABLE)
     }
 
     /// Create a key for generating database id with kvapi::KVApi
     pub fn database_id() -> Self {
-        Self {
-            resource: ID_GEN_DATABASE.to_string(),
-        }
+        Self::new(ID_GEN_DATABASE)
     }
 
     /// Create a key for generating dictionary id with kvapi::KVApi
     pub fn dictionary_id() -> Self {
-        Self {
-            resource: ID_GEN_DICTIONARY.to_string(),
-        }
+        Self::new(ID_GEN_DICTIONARY)
     }
 
     /// Create a key for generating share id with kvapi::KVApi
     pub fn share_id() -> Self {
-        Self {
-            resource: ID_GEN_SHARE.to_string(),
-        }
+        Self::new(ID_GEN_SHARE)
     }
 
     pub fn share_endpoint_id() -> Self {
-        Self {
-            resource: ID_GEN_SHARE_ENDPOINT.to_string(),
-        }
+        Self::new(ID_GEN_SHARE_ENDPOINT)
     }
 
     pub fn index_id() -> Self {
-        Self {
-            resource: ID_GEN_INDEX.to_string(),
-        }
+        Self::new(ID_GEN_INDEX)
     }
 
     pub fn data_mask_id() -> Self {
-        Self {
-            resource: ID_GEN_DATA_MASK.to_string(),
-        }
+        Self::new(ID_GEN_DATA_MASK)
     }
 
     pub fn row_access_id() -> Self {
-        Self {
-            resource: ID_GEN_ROW_POLICY.to_string(),
-        }
+        Self::new(ID_GEN_ROW_POLICY)
     }
 
     pub fn table_lock_id() -> Self {
-        Self {
-            resource: ID_GEN_TABLE_LOCK.to_string(),
-        }
+        Self::new(ID_GEN_TABLE_LOCK)
     }
 
     pub fn background_job_id() -> Self {
-        Self {
-            resource: ID_GEN_BACKGROUND_JOB.to_string(),
-        }
+        Self::new(ID_GEN_BACKGROUND_JOB)
     }
 
     /// Create a key for generating catalog id with kvapi::KVApi
     pub fn catalog_id() -> Self {
-        Self {
-            resource: ID_GEN_CATALOG.to_string(),
-        }
+        Self::new(ID_GEN_CATALOG)
     }
 
     /// Create a key for generating procedure id with kvapi::KVApi
     pub fn procedure_id() -> Self {
-        Self {
-            resource: ID_GEN_PROCEDURE.to_string(),
-        }
+        Self::new(ID_GEN_PROCEDURE)
     }
 }
 
@@ -166,7 +146,7 @@ impl kvapi::Value for IdGeneratorValue {
 
 #[cfg(test)]
 mod t {
-    use databend_common_meta_kvapi::kvapi::Key;
+    use databend_meta_kvapi::kvapi::Key;
 
     use crate::id_generator::IdGenerator;
 

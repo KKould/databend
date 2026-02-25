@@ -16529,6 +16529,237 @@ AlterObjectTag(
 
 
 ---------- Input ----------
+ALTER VIEW v SET TAG tag1 = 'val1';
+---------- Output ---------
+ALTER VIEW v SET TAG tag1 = 'val1'
+---------- AST ------------
+AlterObjectTag(
+    AlterObjectTagStmt {
+        object: View {
+            if_exists: false,
+            catalog: None,
+            database: None,
+            view: Identifier {
+                span: Some(
+                    11..12,
+                ),
+                name: "v",
+                quote: None,
+                ident_type: None,
+            },
+        },
+        action: Set {
+            tags: [
+                TagSetItem {
+                    tag_name: Identifier {
+                        span: Some(
+                            21..25,
+                        ),
+                        name: "tag1",
+                        quote: None,
+                        ident_type: None,
+                    },
+                    tag_value: "val1",
+                },
+            ],
+        },
+    },
+)
+
+
+---------- Input ----------
+ALTER VIEW IF EXISTS db.v UNSET TAG tag1;
+---------- Output ---------
+ALTER VIEW IF EXISTS db.v UNSET TAG tag1
+---------- AST ------------
+AlterObjectTag(
+    AlterObjectTagStmt {
+        object: View {
+            if_exists: true,
+            catalog: None,
+            database: Some(
+                Identifier {
+                    span: Some(
+                        21..23,
+                    ),
+                    name: "db",
+                    quote: None,
+                    ident_type: None,
+                },
+            ),
+            view: Identifier {
+                span: Some(
+                    24..25,
+                ),
+                name: "v",
+                quote: None,
+                ident_type: None,
+            },
+        },
+        action: Unset {
+            tags: [
+                Identifier {
+                    span: Some(
+                        36..40,
+                    ),
+                    name: "tag1",
+                    quote: None,
+                    ident_type: None,
+                },
+            ],
+        },
+    },
+)
+
+
+---------- Input ----------
+ALTER FUNCTION my_udf SET TAG tag1 = 'val1';
+---------- Output ---------
+ALTER FUNCTION my_udf SET TAG tag1 = 'val1'
+---------- AST ------------
+AlterObjectTag(
+    AlterObjectTagStmt {
+        object: Function {
+            if_exists: false,
+            udf_name: Identifier {
+                span: Some(
+                    15..21,
+                ),
+                name: "my_udf",
+                quote: None,
+                ident_type: None,
+            },
+        },
+        action: Set {
+            tags: [
+                TagSetItem {
+                    tag_name: Identifier {
+                        span: Some(
+                            30..34,
+                        ),
+                        name: "tag1",
+                        quote: None,
+                        ident_type: None,
+                    },
+                    tag_value: "val1",
+                },
+            ],
+        },
+    },
+)
+
+
+---------- Input ----------
+ALTER FUNCTION IF EXISTS my_udf UNSET TAG tag1;
+---------- Output ---------
+ALTER FUNCTION IF EXISTS my_udf UNSET TAG tag1
+---------- AST ------------
+AlterObjectTag(
+    AlterObjectTagStmt {
+        object: Function {
+            if_exists: true,
+            udf_name: Identifier {
+                span: Some(
+                    25..31,
+                ),
+                name: "my_udf",
+                quote: None,
+                ident_type: None,
+            },
+        },
+        action: Unset {
+            tags: [
+                Identifier {
+                    span: Some(
+                        42..46,
+                    ),
+                    name: "tag1",
+                    quote: None,
+                    ident_type: None,
+                },
+            ],
+        },
+    },
+)
+
+
+---------- Input ----------
+ALTER PROCEDURE my_proc(INT, STRING) SET TAG tag1 = 'val1';
+---------- Output ---------
+ALTER PROCEDURE my_proc(Int32, STRING) SET TAG tag1 = 'val1'
+---------- AST ------------
+AlterObjectTag(
+    AlterObjectTagStmt {
+        object: Procedure {
+            if_exists: false,
+            name: Identifier {
+                span: Some(
+                    16..23,
+                ),
+                name: "my_proc",
+                quote: None,
+                ident_type: None,
+            },
+            arg_types: [
+                Int32,
+                String,
+            ],
+        },
+        action: Set {
+            tags: [
+                TagSetItem {
+                    tag_name: Identifier {
+                        span: Some(
+                            45..49,
+                        ),
+                        name: "tag1",
+                        quote: None,
+                        ident_type: None,
+                    },
+                    tag_value: "val1",
+                },
+            ],
+        },
+    },
+)
+
+
+---------- Input ----------
+ALTER PROCEDURE IF EXISTS my_proc() UNSET TAG tag1;
+---------- Output ---------
+ALTER PROCEDURE IF EXISTS my_proc() UNSET TAG tag1
+---------- AST ------------
+AlterObjectTag(
+    AlterObjectTagStmt {
+        object: Procedure {
+            if_exists: true,
+            name: Identifier {
+                span: Some(
+                    26..33,
+                ),
+                name: "my_proc",
+                quote: None,
+                ident_type: None,
+            },
+            arg_types: [],
+        },
+        action: Unset {
+            tags: [
+                Identifier {
+                    span: Some(
+                        46..50,
+                    ),
+                    name: "tag1",
+                    quote: None,
+                    ident_type: None,
+                },
+            ],
+        },
+    },
+)
+
+
+---------- Input ----------
 ALTER DATABASE ctl.c RENAME TO a;
 ---------- Output ---------
 ALTER DATABASE ctl.c RENAME TO a
@@ -18180,15 +18411,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -18249,15 +18480,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -18327,15 +18558,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 10,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -18405,15 +18636,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 3000,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -18487,15 +18718,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -18569,15 +18800,135 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
+        },
+    },
+)
+
+
+---------- Input ----------
+COPY INTO @my_stage/partitioned
+    FROM mytable
+    PARTITION BY (concat('p=', to_varchar(id)))
+    FILE_FORMAT = (type = PARQUET);
+---------- Output ---------
+COPY INTO '@my_stage/partitioned' FROM mytable PARTITION BY (concat('p=', to_varchar(id))) FILE_FORMAT = (type = PARQUET) SINGLE = false MAX_FILE_SIZE = 0 DETAILED_OUTPUT = false INCLUDE_QUERY_ID = true USE_RAW_PATH = false OVERWRITE = false
+---------- AST ------------
+CopyIntoLocation(
+    CopyIntoLocationStmt {
+        with: None,
+        hints: None,
+        src: Table {
+            catalog: None,
+            database: None,
+            table: Identifier {
+                span: Some(
+                    41..48,
+                ),
+                name: "mytable",
+                quote: None,
+                ident_type: None,
+            },
+            with_options: None,
+        },
+        dst: Stage(
+            "my_stage/partitioned",
+        ),
+        partition_by: Some(
+            FunctionCall {
+                span: Some(
+                    67..95,
+                ),
+                func: FunctionCall {
+                    distinct: false,
+                    name: Identifier {
+                        span: Some(
+                            67..73,
+                        ),
+                        name: "concat",
+                        quote: None,
+                        ident_type: None,
+                    },
+                    args: [
+                        Literal {
+                            span: Some(
+                                74..78,
+                            ),
+                            value: String(
+                                "p=",
+                            ),
+                        },
+                        FunctionCall {
+                            span: Some(
+                                80..94,
+                            ),
+                            func: FunctionCall {
+                                distinct: false,
+                                name: Identifier {
+                                    span: Some(
+                                        80..90,
+                                    ),
+                                    name: "to_varchar",
+                                    quote: None,
+                                    ident_type: None,
+                                },
+                                args: [
+                                    ColumnRef {
+                                        span: Some(
+                                            91..93,
+                                        ),
+                                        column: ColumnRef {
+                                            database: None,
+                                            table: None,
+                                            column: Name(
+                                                Identifier {
+                                                    span: Some(
+                                                        91..93,
+                                                    ),
+                                                    name: "id",
+                                                    quote: None,
+                                                    ident_type: None,
+                                                },
+                                            ),
+                                        },
+                                    },
+                                ],
+                                params: [],
+                                order_by: [],
+                                window: None,
+                                lambda: None,
+                            },
+                        },
+                    ],
+                    params: [],
+                    order_by: [],
+                    window: None,
+                    lambda: None,
+                },
+            },
+        ),
+        file_format: FileFormatOptions {
+            options: {
+                "type": Keyword(
+                    "PARQUET",
+                ),
+            },
+        },
+        options: CopyIntoLocationOptions {
+            single: false,
+            max_file_size: 0,
+            detailed_output: false,
+            use_raw_path: false,
+            include_query_id: true,
+            overwrite: false,
         },
     },
 )
@@ -18626,15 +18977,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 0,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 0,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -18683,15 +19034,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 0,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 0,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -18756,15 +19107,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -18810,6 +19161,7 @@ CopyIntoLocation(
                 },
             },
         ),
+        partition_by: None,
         file_format: FileFormatOptions {
             options: {
                 "field_delimiter": String(
@@ -18864,6 +19216,7 @@ CopyIntoLocation(
         dst: Stage(
             "my_stage/my data",
         ),
+        partition_by: None,
         file_format: FileFormatOptions {
             options: {},
         },
@@ -18911,6 +19264,7 @@ CopyIntoLocation(
         dst: Stage(
             "my_stage",
         ),
+        partition_by: None,
         file_format: FileFormatOptions {
             options: {
                 "field_delimiter": String(
@@ -19009,15 +19363,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -19078,15 +19432,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -19147,15 +19501,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -19216,15 +19570,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 0,
             max_files: 0,
-            split_size: 0,
             force: true,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 0,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -19294,15 +19648,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 10,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: true,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 10,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -19366,15 +19720,15 @@ CopyIntoTable(
             on_error: AbortNum(
                 1,
             ),
-            size_limit: 0,
             max_files: 0,
-            split_size: 0,
             force: false,
             purge: false,
             disable_variant_check: false,
             return_failed_only: false,
-            validation_mode: "",
             column_match_mode: None,
+            size_limit: 0,
+            split_size: 0,
+            validation_mode: "",
         },
     },
 )
@@ -25471,15 +25825,15 @@ CreatePipe(
                 on_error: AbortNum(
                     1,
                 ),
-                size_limit: 0,
                 max_files: 0,
-                split_size: 0,
                 force: false,
                 purge: false,
                 disable_variant_check: false,
                 return_failed_only: false,
-                validation_mode: "",
                 column_match_mode: None,
+                size_limit: 0,
+                split_size: 0,
+                validation_mode: "",
             },
         },
     },
@@ -25534,15 +25888,15 @@ CreatePipe(
                 on_error: AbortNum(
                     1,
                 ),
-                size_limit: 0,
                 max_files: 0,
-                split_size: 0,
                 force: false,
                 purge: false,
                 disable_variant_check: false,
                 return_failed_only: false,
-                validation_mode: "",
                 column_match_mode: None,
+                size_limit: 0,
+                split_size: 0,
+                validation_mode: "",
             },
         },
     },

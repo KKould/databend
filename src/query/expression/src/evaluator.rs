@@ -321,7 +321,7 @@ impl<'a> Evaluator<'a> {
             strict_eval: options.strict_eval,
         };
 
-        let (_, eval) = function.eval.as_scalar().unwrap();
+        let (_, _, eval) = function.eval.as_scalar().unwrap();
         let result = eval.eval(&args, &mut ctx);
 
         if options.suppress_error {
@@ -1290,7 +1290,7 @@ impl<'a> Evaluator<'a> {
         validity: Option<Bitmap>,
         options: &mut EvaluateOptions,
     ) -> Result<Value<AnyType>> {
-        if args.len() < 3 && args.len() % 2 == 0 {
+        if args.len() < 3 || args.len() % 2 == 0 {
             unreachable!()
         }
 
@@ -2010,7 +2010,7 @@ impl<'a> Evaluator<'a> {
                     suppress_error: options.suppress_error,
                     strict_eval: options.strict_eval,
                 };
-                let (_, eval) = function.eval.as_scalar().unwrap();
+                let (_, _, eval) = function.eval.as_scalar().unwrap();
                 let result = eval.eval(&args, &mut ctx);
 
                 // inject errors into options, parent will handle it
