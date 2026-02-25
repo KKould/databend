@@ -71,6 +71,7 @@ impl InferSchemaSeparator {
         quote: &str,
         headers: u64,
         escape: &str,
+        record_delimiter: &str,
         max_records: Option<usize>,
     ) -> std::result::Result<Schema, Option<ArrowError>> {
         let mut format = Format::default()
@@ -80,6 +81,12 @@ impl InferSchemaSeparator {
 
         if !escape.is_empty() {
             format = format.with_escape(escape.as_bytes()[0]);
+        }
+
+        if !matches!(record_delimiter.as_bytes(), b"\n" | b"\r\n") {
+            if let Some(&terminator) = record_delimiter.as_bytes().first() {
+                format = format.with_terminator(terminator);
+            }
         }
 
         format
@@ -124,6 +131,7 @@ impl AccumulatingTransform for InferSchemaSeparator {
                 &params.quote,
                 params.headers,
                 &params.escape,
+                &params.record_delimiter,
                 self.max_records,
             ),
             FileFormatParams::Tsv(params) => Self::infer_delimited_schema(
@@ -132,6 +140,7 @@ impl AccumulatingTransform for InferSchemaSeparator {
                 &params.quote,
                 params.headers,
                 &params.escape,
+                &params.record_delimiter,
                 self.max_records,
             ),
             FileFormatParams::NdJson(_) => {
@@ -229,5 +238,27 @@ fn human_readable_size(bytes: usize) -> String {
         format!("{:.2} KB", b / KB)
     } else {
         format!("{} B", bytes)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_infer_tsv_schema_with_custom_record_delimiter() {
+        let bytes = Cursor::new("1\t2|3\t4|".as_bytes());
+        let schema = InferSchemaSeparator::infer_delimited_schema(
+            bytes,
+            "\t",
+            "\"",
+            0,
+            "",
+            "|",
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(schema.fields().len(), 2);
     }
 }
