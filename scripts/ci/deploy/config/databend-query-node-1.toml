@@ -47,6 +47,7 @@ udf_server_allow_list = ['http://0.0.0.0:8815']
 udf_server_allow_insecure = true
 
 cloud_control_grpc_server_address = "http://0.0.0.0:50051"
+enable_udf_sandbox = true
 
 # network_policy_whitelist = ['127.0.0.0/8']
 
