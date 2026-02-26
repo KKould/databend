@@ -248,16 +248,9 @@ mod tests {
     #[test]
     fn test_infer_tsv_schema_with_custom_record_delimiter() {
         let bytes = Cursor::new("1\t2|3\t4|".as_bytes());
-        let schema = InferSchemaSeparator::infer_delimited_schema(
-            bytes,
-            "\t",
-            "\"",
-            0,
-            "",
-            "|",
-            None,
-        )
-        .unwrap();
+        let schema =
+            InferSchemaSeparator::infer_delimited_schema(bytes, "\t", "\"", 0, "", "|", None)
+                .unwrap();
 
         assert_eq!(schema.fields().len(), 2);
     }
