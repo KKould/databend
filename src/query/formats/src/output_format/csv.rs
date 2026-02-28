@@ -61,7 +61,7 @@ impl CSVOutputFormat {
                 }
                 write_csv_string(v.as_bytes(), &mut buf, self.quote);
             }
-        } else if values.len() != 0 {
+        } else if !values.is_empty() {
             if values.len() > 1 {
                 return Err(ErrorCode::InvalidArgument(
                     "field_delimiter cannot be '' or none when multiple columns exist".to_string(),
@@ -99,7 +99,7 @@ impl OutputFormat for CSVOutputFormat {
                     self.field_encoder
                         .write_field(column, row_index, &mut buf)?;
                 }
-            } else if columns.len() != 0 {
+            } else if !columns.is_empty() {
                 if columns.len() > 1 {
                     return Err(ErrorCode::InvalidArgument(
                         "field_delimiter cannot be '' or none when multiple columns exist"
