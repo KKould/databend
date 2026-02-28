@@ -89,8 +89,13 @@ impl CsvReader {
         } else {
             Some(format.params.escape.as_bytes()[0])
         };
-        let reader = csv_core::ReaderBuilder::new()
-            .delimiter_bytes(format.params.field_delimiter.as_bytes())
+        let mut builder = csv_core::ReaderBuilder::new();
+        if !format.params.field_delimiter.is_empty() {
+            builder.delimiter_bytes(format.params.field_delimiter.as_bytes());
+        } else {
+            builder.delimiter_none();
+        }
+        let reader = builder
             .quote(format.params.quote.as_bytes()[0])
             .escape(escape)
             .terminator(match format.params.record_delimiter.as_str().try_into()? {

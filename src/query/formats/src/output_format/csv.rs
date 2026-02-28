@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
 use databend_common_expression::Column;
 use databend_common_expression::DataBlock;
@@ -25,7 +26,7 @@ use crate::output_format::OutputFormat;
 pub struct CSVOutputFormat {
     schema: TableSchemaRef,
     field_encoder: FieldEncoderCSV,
-    field_delimiter: u8,
+    field_delimiter: Option<u8>,
     record_delimiter: Vec<u8>,
     quote: u8,
 
@@ -42,26 +43,35 @@ impl CSVOutputFormat {
         Self {
             schema,
             field_encoder,
-            field_delimiter: params.field_delimiter.as_bytes()[0],
+            field_delimiter: params.field_delimiter.as_bytes().first().copied(),
             record_delimiter: params.record_delimiter.as_bytes().to_vec(),
             quote: params.quote.as_bytes()[0],
             headers,
         }
     }
 
-    fn serialize_strings(&self, values: Vec<String>) -> Vec<u8> {
+    fn serialize_strings(&self, values: Vec<String>) -> Result<Vec<u8>> {
         let mut buf = vec![];
         let fd = self.field_delimiter;
 
-        for (col_index, v) in values.iter().enumerate() {
-            if col_index != 0 {
-                buf.push(fd);
+        if let Some(fd) = fd {
+            for (col_index, v) in values.iter().enumerate() {
+                if col_index != 0 {
+                    buf.push(fd);
+                }
+                write_csv_string(v.as_bytes(), &mut buf, self.quote);
             }
-            write_csv_string(v.as_bytes(), &mut buf, self.quote);
+        } else if values.len() != 0 {
+            if values.len() > 1 {
+                return Err(ErrorCode::InvalidArgument(
+                    "field_delimiter cannot be '' or none when multiple columns exist".to_string(),
+                ));
+            }
+            write_csv_string(values[0].as_bytes(), &mut buf, self.quote);
         }
 
         buf.extend_from_slice(&self.record_delimiter);
-        buf
+        Ok(buf)
     }
 }
 
@@ -81,12 +91,23 @@ impl OutputFormat for CSVOutputFormat {
             .collect();
 
         for row_index in 0..rows_size {
-            for (col_index, column) in columns.iter().enumerate() {
-                if col_index != 0 {
-                    buf.push(fd);
+            if let Some(fd) = fd {
+                for (col_index, column) in columns.iter().enumerate() {
+                    if col_index != 0 {
+                        buf.push(fd);
+                    }
+                    self.field_encoder
+                        .write_field(column, row_index, &mut buf)?;
+                }
+            } else if columns.len() != 0 {
+                if columns.len() > 1 {
+                    return Err(ErrorCode::InvalidArgument(
+                        "field_delimiter cannot be '' or none when multiple columns exist"
+                            .to_string(),
+                    ));
                 }
                 self.field_encoder
-                    .write_field(column, row_index, &mut buf)?;
+                    .write_field(&columns[0], row_index, &mut buf)?;
             }
             buf.extend_from_slice(rd)
         }
@@ -102,7 +123,7 @@ impl OutputFormat for CSVOutputFormat {
                 .iter()
                 .map(|f| f.name().to_string())
                 .collect::<Vec<_>>();
-            buf.extend_from_slice(&self.serialize_strings(names));
+            buf.extend_from_slice(&self.serialize_strings(names)?);
             if self.headers > 1 {
                 let types = self
                     .schema
@@ -110,7 +131,7 @@ impl OutputFormat for CSVOutputFormat {
                     .iter()
                     .map(|f| f.data_type().to_string())
                     .collect::<Vec<_>>();
-                buf.extend_from_slice(&self.serialize_strings(types));
+                buf.extend_from_slice(&self.serialize_strings(types)?);
             }
         }
         Ok(buf)

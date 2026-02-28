@@ -981,8 +981,6 @@ pub fn check_field_delimiter_csv(option: &str) -> std::result::Result<(), String
         Err("Expecting a non-alphanumeric character.".into())
     } else if option.len() > 20 {
         Err("Expecting at most 20 bytes.".into())
-    } else if option.is_empty() {
-        Err("Should not be empty.".into())
     } else {
         Ok(())
     }
@@ -1031,5 +1029,30 @@ fn parse_null_if(null_if: Option<String>) -> Result<Vec<String>> {
                 )))?;
             Ok(values)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn get_csv_params(options: BTreeMap<String, String>) -> CsvFileFormatParams {
+        let params =
+            FileFormatParams::try_from_reader(FileFormatOptionsReader::from_map(options), false)
+                .expect("csv file format options should parse");
+        match params {
+            FileFormatParams::Csv(v) => v,
+            _ => unreachable!("expected csv params"),
+        }
+    }
+
+    #[test]
+    fn test_csv_field_delimiter_empty_string() {
+        let mut options = BTreeMap::new();
+        options.insert("type".to_string(), "CSV".to_string());
+        options.insert("field_delimiter".to_string(), "".to_string());
+
+        let params = get_csv_params(options);
+        assert_eq!(params.field_delimiter, "".to_string());
     }
 }
