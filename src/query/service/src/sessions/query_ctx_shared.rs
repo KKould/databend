@@ -76,8 +76,8 @@ use uuid::Uuid;
 
 use crate::clusters::Cluster;
 use crate::clusters::ClusterDiscovery;
+use crate::distributed::NodePerfCounters;
 use crate::pipelines::executor::PipelineExecutor;
-use crate::servers::flight::v1::packets::NodePerfCounters;
 use crate::sessions::BuildInfoRef;
 use crate::sessions::Session;
 use crate::sessions::query_affect::QueryAffect;

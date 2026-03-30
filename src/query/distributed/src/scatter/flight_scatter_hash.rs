@@ -36,7 +36,7 @@ use databend_common_expression::types::NumberType;
 use databend_common_expression::types::number::NumberScalar;
 use databend_common_functions::BUILTIN_FUNCTIONS;
 
-use crate::servers::flight::v1::scatter::flight_scatter::FlightScatter;
+use crate::scatter::flight_scatter::FlightScatter;
 
 #[derive(Clone)]
 pub struct HashFlightScatter {
@@ -234,20 +234,15 @@ impl HashFlightScatter {
 }
 
 fn shuffle_by_block_id_in_merge_into(expr: &RemoteExpr) -> bool {
-    if let RemoteExpr::FunctionCall {
-        id: box FunctionID::Builtin { name, .. },
-        args,
-        ..
-    } = expr
-    {
-        if name == "bit_and" {
-            if let RemoteExpr::FunctionCall {
-                id: box FunctionID::Builtin { name, .. },
-                ..
-            } = &args[0]
-            {
-                if name == "bit_shift_right" {
-                    return true;
+    if let RemoteExpr::FunctionCall { id, args, .. } = expr {
+        if let FunctionID::Builtin { name, .. } = id.as_ref() {
+            if name == "bit_and" {
+                if let RemoteExpr::FunctionCall { id, .. } = &args[0] {
+                    if let FunctionID::Builtin { name, .. } = id.as_ref() {
+                        if name == "bit_shift_right" {
+                            return true;
+                        }
+                    }
                 }
             }
         }

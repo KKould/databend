@@ -21,6 +21,7 @@ use arrow_flight::Ticket;
 use arrow_flight::flight_service_client::FlightServiceClient;
 use async_channel::Receiver;
 use async_channel::Sender;
+use databend_common_base::base::WatchNotify;
 use databend_common_base::runtime::drop_guard;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
@@ -39,9 +40,8 @@ use tonic::metadata::AsciiMetadataKey;
 use tonic::metadata::AsciiMetadataValue;
 use tonic::transport::channel::Channel;
 
-use crate::pipelines::executor::WatchNotify;
-use crate::servers::flight::request_builder::RequestBuilder;
-use crate::servers::flight::v1::packets::DataPacket;
+use crate::packets::DataPacket;
+use crate::request_builder::RequestBuilder;
 
 /// Parameters for a do_exchange RPC call, serialized as JSON in metadata.
 #[derive(Serialize, Deserialize)]

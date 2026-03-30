@@ -24,9 +24,9 @@ use databend_common_users::RoleCacheManager;
 
 use crate::clusters::ClusterHelper;
 use crate::clusters::FlightParams;
+use crate::distributed::SYSTEM_ACTION;
 use crate::interpreters::Interpreter;
 use crate::pipelines::PipelineBuildResult;
-use crate::servers::flight::v1::actions::SYSTEM_ACTION;
 use crate::sessions::QueryContext;
 
 pub struct SystemActionInterpreter {

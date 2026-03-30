@@ -19,9 +19,9 @@ use std::sync::Arc;
 #[cfg(feature = "fuse-management")]
 use std::time::Instant;
 
+use databend_common_catalog::lock::LockTableOption;
 #[cfg(feature = "fuse-management")]
 use databend_common_catalog::table_context::TableContext;
-use databend_common_catalog::lock::LockTableOption;
 use databend_common_pipeline::core::Pipeline;
 use databend_common_sql::executor::physical_plans::MutationKind;
 #[cfg(feature = "fuse-management")]

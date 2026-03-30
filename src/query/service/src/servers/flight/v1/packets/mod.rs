@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod packet_data;
-mod packet_data_progressinfo;
 mod packet_executor;
 mod packet_fragment;
 mod packet_publisher;
 
-pub use packet_data::DataPacket;
-pub use packet_data::FragmentData;
-pub use packet_data::NodePerfCounters;
-pub use packet_data_progressinfo::ProgressInfo;
+pub use databend_query_distributed::packets::DataPacket;
+pub use databend_query_distributed::packets::FragmentData;
+pub use databend_query_distributed::packets::NodePerfCounters;
+pub use databend_query_distributed::packets::ProgressInfo;
 pub use packet_executor::QueryFragments;
 pub use packet_fragment::QueryFragment;
 pub use packet_publisher::DataflowDiagram;

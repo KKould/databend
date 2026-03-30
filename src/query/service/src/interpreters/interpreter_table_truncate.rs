@@ -22,9 +22,9 @@ use databend_common_sql::plans::TruncateTablePlan;
 
 use crate::clusters::ClusterHelper;
 use crate::clusters::FlightParams;
+use crate::distributed::TRUNCATE_TABLE;
 use crate::interpreters::Interpreter;
 use crate::pipelines::PipelineBuildResult;
-use crate::servers::flight::v1::actions::TRUNCATE_TABLE;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
 

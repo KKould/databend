@@ -22,10 +22,10 @@ use databend_common_pipeline::core::Pipeline;
 use databend_common_pipeline::core::SourcePipeBuilder;
 use databend_common_pipeline::sources::OneBlockSource;
 
+use crate::distributed::DefaultExchangeInjector;
+use crate::distributed::ExchangeInjector;
 use crate::interpreters::CreateTableInterpreter;
 use crate::pipelines::processors::transforms::HashJoinBuildState;
-use crate::servers::flight::v1::exchange::DefaultExchangeInjector;
-use crate::servers::flight::v1::exchange::ExchangeInjector;
 
 #[derive(Clone)]
 pub struct PipelineBuilderData {

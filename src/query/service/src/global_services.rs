@@ -54,12 +54,12 @@ use crate::catalogs::DatabaseCatalog;
 #[cfg(feature = "storage-iceberg")]
 use crate::catalogs::IcebergCreator;
 use crate::clusters::ClusterDiscovery;
+use crate::distributed::DataExchangeManager;
 use crate::history_tables::GlobalHistoryLog;
 use crate::locks::LockManager;
 use crate::pipelines::executor::GlobalQueriesExecutor;
-use crate::servers::flight::v1::exchange::DataExchangeManager;
-use crate::servers::http::v1::ClientSessionManager;
-use crate::servers::http::v1::HttpQueryManager;
+use crate::runtime_managers::ClientSessionManager;
+use crate::runtime_managers::HttpQueryManager;
 use crate::sessions::QueriesQueueManager;
 use crate::sessions::SessionManager;
 use crate::spillers::SpillsBufferPool;

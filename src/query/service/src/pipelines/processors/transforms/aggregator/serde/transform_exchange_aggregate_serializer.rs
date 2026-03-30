@@ -47,6 +47,8 @@ use log::info;
 use opendal::Operator;
 
 use super::SerializePayload;
+use crate::distributed::ExchangeShuffleMeta;
+use crate::distributed::serde::serialize_block;
 use crate::pipelines::processors::transforms::aggregator::AggregateSerdeMeta;
 use crate::pipelines::processors::transforms::aggregator::AggregatorParams;
 use crate::pipelines::processors::transforms::aggregator::FlightSerialized;
@@ -56,8 +58,6 @@ use crate::pipelines::processors::transforms::aggregator::agg_spilling_aggregate
 use crate::pipelines::processors::transforms::aggregator::aggregate_exchange_injector::compute_block_number;
 use crate::pipelines::processors::transforms::aggregator::aggregate_meta::AggregateMeta;
 use crate::pipelines::processors::transforms::aggregator::exchange_defines;
-use crate::servers::flight::v1::exchange::ExchangeShuffleMeta;
-use crate::servers::flight::v1::exchange::serde::serialize_block;
 use crate::sessions::QueryContext;
 use crate::spillers::Spiller;
 use crate::spillers::SpillerConfig;

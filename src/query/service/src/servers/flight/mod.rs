@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod flight_client;
 mod flight_service;
-pub(crate) mod keep_alive;
-mod request_builder;
 pub mod v1;
 
-pub use flight_client::DoExchangeParams;
-pub use flight_client::FlightClient;
-pub use flight_client::FlightExchange;
-pub use flight_client::FlightReceiver;
-pub use flight_client::FlightSender;
 pub use flight_service::FlightService;
+
+pub use crate::distributed::DoExchangeParams;
+pub use crate::distributed::FlightClient;
+pub use crate::distributed::FlightExchange;
+pub use crate::distributed::FlightReceiver;
+pub use crate::distributed::FlightSender;
+pub(crate) use crate::distributed::keep_alive;
+pub(crate) use crate::distributed::request_builder;

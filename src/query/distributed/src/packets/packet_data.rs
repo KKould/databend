@@ -34,7 +34,7 @@ use databend_common_storage::CopyStatus;
 use databend_common_storage::MutationStatus;
 use log::error;
 
-use crate::servers::flight::v1::packets::ProgressInfo;
+use super::ProgressInfo;
 
 /// Per-node hardware performance counter data, collected separately from PlanProfile.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -120,7 +120,6 @@ impl TryFrom<DataPacket> for FlightData {
                 let mut data_body = vec![];
                 data_body.write_u64::<BigEndian>(progress.len() as u64)?;
 
-                // Progress.
                 for progress_info in progress {
                     progress_info.write(&mut data_body)?;
                 }
@@ -213,7 +212,6 @@ impl TryFrom<FlightData> for DataPacket {
                 let mut bytes = flight_data.data_body.deref();
                 let progress_size = bytes.read_u64::<BigEndian>()?;
 
-                // Progress.
                 let mut progress_info = Vec::with_capacity(progress_size as usize);
                 for _index in 0..progress_size {
                     progress_info.push(ProgressInfo::read(&mut bytes)?);
@@ -258,11 +256,20 @@ impl TryFrom<FlightData> for FragmentData {
     type Error = ErrorCode;
 
     fn try_from(flight_data: FlightData) -> Result<Self> {
-        Ok(FragmentData::create(flight_data.app_metadata, FlightData {
-            app_metadata: Default::default(),
-            flight_descriptor: None,
-            data_body: flight_data.data_body,
-            data_header: flight_data.data_header,
-        }))
+        if flight_data.app_metadata.is_empty() {
+            return Err(ErrorCode::BadBytes("Flight data app metadata is empty."));
+        }
+
+        Ok(FragmentData {
+            meta: Bytes::copy_from_slice(
+                &flight_data.app_metadata[..flight_data.app_metadata.len() - 1],
+            ),
+            data: FlightData {
+                app_metadata: Default::default(),
+                data_body: flight_data.data_body,
+                data_header: flight_data.data_header,
+                flight_descriptor: None,
+            },
+        })
     }
 }

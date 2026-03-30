@@ -37,7 +37,7 @@ use databend_common_meta_app::schema::TableMeta;
 use databend_common_storages_system::SyncOneBlockSystemTable;
 use databend_common_storages_system::SyncSystemTable;
 
-use crate::servers::http::v1::ClientSessionManager;
+use crate::runtime_managers::ClientSessionManager;
 use crate::sessions::SessionManager;
 
 pub struct TemporaryTablesTable {

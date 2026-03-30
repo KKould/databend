@@ -29,6 +29,7 @@ use databend_common_storages_fuse::TableContext;
 use databend_storages_common_table_meta::meta::BlockSlotDescription;
 use databend_storages_common_table_meta::meta::Location;
 
+use crate::distributed::DataExchange;
 use crate::physical_plans::CompactSource;
 use crate::physical_plans::ConstantTableScan;
 use crate::physical_plans::DeriveHandle;
@@ -46,7 +47,6 @@ use crate::schedulers::Fragmenter;
 use crate::schedulers::QueryFragmentAction;
 use crate::schedulers::QueryFragmentActions;
 use crate::schedulers::QueryFragmentsActions;
-use crate::servers::flight::v1::exchange::DataExchange;
 use crate::sessions::QueryContext;
 
 /// Type of plan fragment

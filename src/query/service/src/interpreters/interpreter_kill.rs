@@ -22,9 +22,9 @@ use databend_common_sql::plans::KillPlan;
 
 use crate::clusters::ClusterHelper;
 use crate::clusters::FlightParams;
+use crate::distributed::KILL_QUERY;
 use crate::interpreters::Interpreter;
 use crate::pipelines::PipelineBuildResult;
-use crate::servers::flight::v1::actions::KILL_QUERY;
 use crate::sessions::QueriesQueueManager;
 use crate::sessions::QueryContext;
 

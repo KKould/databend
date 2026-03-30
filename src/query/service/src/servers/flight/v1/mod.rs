@@ -13,11 +13,11 @@
 // limitations under the License.
 
 pub mod actions;
-pub mod exchange;
-pub mod network;
-pub mod packets;
-pub mod scatter;
-
 mod flight_service;
 
 pub use flight_service::DatabendQueryFlightService;
+
+pub use crate::distributed::exchange;
+pub use crate::distributed::network;
+pub use crate::distributed::packets;
+pub use crate::distributed::scatter;

@@ -15,7 +15,7 @@
 pub mod catalog;
 mod discovery;
 mod http_query_handlers;
-mod query;
+pub(crate) mod query;
 pub mod roles;
 mod session;
 mod stage;
@@ -43,13 +43,11 @@ pub use query::blocks_serializer::BlocksCollector;
 pub use query::blocks_serializer::BlocksSerializer;
 pub use roles::list_roles_handler;
 pub use session::ClientSessionManager;
-pub(crate) use session::SessionClaim;
 pub use session::login_handler::LoginResponse;
 pub use session::login_handler::login_handler;
 pub use session::logout_handler::logout_handler;
 pub use session::refresh_handler::RefreshResponse;
 pub use session::refresh_handler::refresh_handler;
-pub(crate) use session::unix_ts;
 pub use stage::UploadToStageResponse;
 pub use stage::upload_to_stage;
 #[cfg(feature = "storage-stage")]

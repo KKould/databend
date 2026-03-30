@@ -25,6 +25,10 @@ use databend_common_sql::executor::physical_plans::FragmentKind;
 use databend_meta_client::types::NodeInfo;
 
 use crate::clusters::ClusterHelper;
+use crate::distributed::BroadcastExchange;
+use crate::distributed::DataExchange;
+use crate::distributed::MergeExchange;
+use crate::distributed::NodeToNodeExchange;
 use crate::physical_plans::BroadcastSink;
 use crate::physical_plans::CompactSource;
 use crate::physical_plans::ConstantTableScan;
@@ -46,10 +50,6 @@ use crate::physical_plans::TableScan;
 use crate::physical_plans::VisitorCast;
 use crate::schedulers::PlanFragment;
 use crate::schedulers::fragments::plan_fragment::FragmentType;
-use crate::servers::flight::v1::exchange::BroadcastExchange;
-use crate::servers::flight::v1::exchange::DataExchange;
-use crate::servers::flight::v1::exchange::MergeExchange;
-use crate::servers::flight::v1::exchange::NodeToNodeExchange;
 use crate::sessions::QueryContext;
 
 /// Visitor to split a `PhysicalPlan` into fragments.

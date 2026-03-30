@@ -75,8 +75,8 @@ use tokio::task::JoinHandle;
 use tokio::time::sleep as tokio_async_sleep;
 use tokio::time::sleep;
 
-use crate::servers::flight::FlightClient;
-use crate::servers::flight::keep_alive::build_keep_alive_config;
+use crate::distributed::FlightClient;
+use crate::distributed::build_keep_alive_config;
 
 pub struct ClusterDiscovery {
     local_id: String,

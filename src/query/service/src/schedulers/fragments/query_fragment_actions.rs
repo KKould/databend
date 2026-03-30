@@ -25,14 +25,14 @@ use databend_common_expression::DataSchemaRef;
 use databend_meta_client::types::NodeInfo;
 
 use crate::clusters::ClusterHelper;
+use crate::distributed::DataExchange;
+use crate::distributed::DataflowDiagramBuilder;
+use crate::distributed::QueryEnv;
+use crate::distributed::QueryFragment;
+use crate::distributed::QueryFragments;
 use crate::physical_plans::ExchangeSink;
 use crate::physical_plans::PhysicalPlan;
 use crate::physical_plans::PhysicalPlanCast;
-use crate::servers::flight::v1::exchange::DataExchange;
-use crate::servers::flight::v1::packets::DataflowDiagramBuilder;
-use crate::servers::flight::v1::packets::QueryEnv;
-use crate::servers::flight::v1::packets::QueryFragment;
-use crate::servers::flight::v1::packets::QueryFragments;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
 

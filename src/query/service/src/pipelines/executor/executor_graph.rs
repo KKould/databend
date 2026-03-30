@@ -68,6 +68,7 @@ use petgraph::prelude::EdgeIndex;
 use petgraph::prelude::NodeIndex;
 use petgraph::prelude::StableGraph;
 
+use crate::distributed::NodePerfCounters;
 use crate::pipelines::executor::ExecutorTask;
 use crate::pipelines::executor::ExecutorWorkerContext;
 use crate::pipelines::executor::ProcessorAsyncTask;
@@ -77,7 +78,6 @@ use crate::pipelines::executor::QueryExecutorTasksQueue;
 use crate::pipelines::executor::QueryPipelineExecutor;
 use crate::pipelines::executor::WorkersCondvar;
 use crate::pipelines::executor::processor_async_task::ExecutorTasksQueue;
-use crate::servers::flight::v1::packets::NodePerfCounters;
 
 enum State {
     Idle,

@@ -25,6 +25,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 const TOKEN_PREFIX: &str = "bend-v1";
+
 fn generate_secure_nonce() -> String {
     let mut random_bytes = [0u8; 16];
     OsRng.fill_bytes(&mut random_bytes);
@@ -38,7 +39,7 @@ pub struct SessionClaim {
     pub auth_role: Option<String>,
     #[serde(rename = "sid")]
     pub session_id: String,
-    pub(crate) nonce: String,
+    pub nonce: String,
     #[serde(rename = "exp")]
     pub expire_at_in_secs: u64,
 }
@@ -66,6 +67,7 @@ impl SessionClaim {
             expire_at_in_secs: (unix_ts() + ttl).as_secs(),
         }
     }
+
     pub fn is_databend_token(token: &str) -> bool {
         token.starts_with(TOKEN_PREFIX)
     }
@@ -74,7 +76,7 @@ impl SessionClaim {
         TokenType::try_from(token.as_bytes()[TOKEN_PREFIX.len() + 1])
     }
 
-    pub(crate) fn encode(&self, token_type: TokenType) -> String {
+    pub fn encode(&self, token_type: TokenType) -> String {
         let token = BASE64_STANDARD.encode(serde_json::to_vec(&self).unwrap());
         let t = token_type.to_string();
         format!("{TOKEN_PREFIX}-{t}-{token}")

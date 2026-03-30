@@ -40,10 +40,10 @@ use sha2::Digest;
 use sha2::Sha256;
 use tokio::time::Instant;
 
-use crate::servers::http::v1::SessionClaim;
-use crate::servers::http::v1::session::consts::TOMBSTONE_TTL;
-use crate::servers::http::v1::session::consts::TTL_GRACE_PERIOD_META;
-use crate::servers::http::v1::session::consts::TTL_GRACE_PERIOD_QUERY;
+use crate::runtime_managers::SessionClaim;
+use crate::runtime_managers::session::consts::TOMBSTONE_TTL;
+use crate::runtime_managers::session::consts::TTL_GRACE_PERIOD_META;
+use crate::runtime_managers::session::consts::TTL_GRACE_PERIOD_QUERY;
 use crate::sessions::Session;
 use crate::sessions::SessionPrivilegeManager;
 

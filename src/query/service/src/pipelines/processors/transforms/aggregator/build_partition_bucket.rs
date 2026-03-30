@@ -27,6 +27,7 @@ use databend_common_storage::DataOperator;
 use tokio::sync::Semaphore;
 
 use crate::clusters::ClusterHelper;
+use crate::distributed::ExchangeShuffleTransform;
 use crate::physical_plans::AggregateShuffleMode;
 use crate::pipelines::processors::transforms::aggregator::AggregateBucketScatter;
 use crate::pipelines::processors::transforms::aggregator::AggregateRowScatter;
@@ -38,7 +39,6 @@ use crate::pipelines::processors::transforms::aggregator::RowShuffleReaderTransf
 use crate::pipelines::processors::transforms::aggregator::TransformAggregateSpillReader;
 use crate::pipelines::processors::transforms::aggregator::TransformFinalAggregate;
 use crate::pipelines::processors::transforms::aggregator::transform_partition_bucket::TransformPartitionBucket;
-use crate::servers::flight::v1::exchange::ExchangeShuffleTransform;
 use crate::sessions::QueryContext;
 
 fn build_partition_bucket_experimental(

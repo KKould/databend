@@ -81,7 +81,7 @@ use crate::interpreters::hook::vacuum_hook::hook_clear_m_cte_temp_table;
 use crate::interpreters::hook::vacuum_hook::hook_disk_temp_dir;
 use crate::interpreters::hook::vacuum_hook::hook_vacuum_temp_files;
 use crate::pipelines::PipelineBuildResult;
-use crate::servers::http::v1::ClientSessionManager;
+use crate::runtime_managers::ClientSessionManager;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
 use crate::sql::plans::Insert;

@@ -1,0 +1,20 @@
+[package]
+name = "databend-query-runtime-managers"
+description = "Runtime manager support types for Databend query"
+version = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+base64 = { workspace = true }
+databend-common-exception = { workspace = true }
+databend-common-meta-app = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[lints]
+workspace = true

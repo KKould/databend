@@ -23,6 +23,12 @@ use databend_common_pipeline::core::ProcessorPtr;
 use databend_common_settings::FlightCompression;
 use databend_common_storage::DataOperator;
 
+use crate::distributed::DataExchange;
+use crate::distributed::ExchangeInjector;
+use crate::distributed::ExchangeSorting;
+use crate::distributed::FlightScatter;
+use crate::distributed::MergeExchangeParams;
+use crate::distributed::ShuffleExchangeParams;
 use crate::physical_plans::AggregateShuffleMode;
 use crate::pipelines::processors::transforms::aggregator::AggregateBucketScatter;
 use crate::pipelines::processors::transforms::aggregator::AggregateRowScatter;
@@ -33,12 +39,6 @@ use crate::pipelines::processors::transforms::aggregator::TransformAggregateSpil
 use crate::pipelines::processors::transforms::aggregator::aggregate_meta::AggregateMeta;
 use crate::pipelines::processors::transforms::aggregator::serde::TransformExchangeAggregateSerializer;
 use crate::pipelines::processors::transforms::aggregator::serde::TransformExchangeAsyncBarrier;
-use crate::servers::flight::v1::exchange::DataExchange;
-use crate::servers::flight::v1::exchange::ExchangeInjector;
-use crate::servers::flight::v1::exchange::ExchangeSorting;
-use crate::servers::flight::v1::exchange::MergeExchangeParams;
-use crate::servers::flight::v1::exchange::ShuffleExchangeParams;
-use crate::servers::flight::v1::scatter::FlightScatter;
 use crate::sessions::QueryContext;
 
 struct AggregateExchangeSorting {}

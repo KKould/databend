@@ -35,11 +35,11 @@ use log::info;
 use parking_lot::Condvar;
 use parking_lot::Mutex;
 
+use crate::distributed::NodePerfCounters;
 use crate::pipelines::executor::ExecutorSettings;
 use crate::pipelines::executor::GlobalQueriesExecutor;
 use crate::pipelines::executor::QueryPipelineExecutor;
 use crate::pipelines::executor::RunningGraph;
-use crate::servers::flight::v1::packets::NodePerfCounters;
 
 pub type InitCallback = Box<dyn FnOnce() -> Result<()> + Send + Sync + 'static>;
 

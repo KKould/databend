@@ -15,7 +15,7 @@
 use databend_common_exception::Result;
 use databend_common_expression::DataBlock;
 
-use crate::servers::flight::v1::scatter::flight_scatter::FlightScatter;
+use crate::scatter::flight_scatter::FlightScatter;
 
 pub struct BroadcastFlightScatter {
     scattered_size: usize,

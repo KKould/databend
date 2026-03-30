@@ -28,11 +28,11 @@ use databend_common_pipeline::core::ProcessorPtr;
 use databend_common_pipeline_transforms::Transform;
 use databend_common_pipeline_transforms::Transformer;
 
+use crate::distributed::ExchangeShuffleMeta;
+use crate::distributed::FlightScatter;
 use crate::pipelines::processors::transforms::aggregator::AggregateMeta;
 use crate::pipelines::processors::transforms::aggregator::AggregatePayload;
 use crate::pipelines::processors::transforms::aggregator::AggregatorParams;
-use crate::servers::flight::v1::exchange::ExchangeShuffleMeta;
-use crate::servers::flight::v1::scatter::FlightScatter;
 
 pub trait LocalScatter: Sync + Send {
     fn name(&self) -> &'static str;

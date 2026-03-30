@@ -8,6 +8,9 @@ specifically for TPCH tests, Hits tests, and internal query performance tests. B
 
 - [`query-min-compile-hotspots-2026-03-29.md`](/home/kould/RustroverProjects/databend/benchmark/query-min-compile-hotspots-2026-03-29.md) 记录了最小 `databend-query` 开发编译配置下的 crate 级 timing 热点快照。
 - [`query-min-compile-progress-2026-03-29.md`](/home/kould/RustroverProjects/databend/benchmark/query-min-compile-progress-2026-03-29.md) 记录了当前最小开发编译的正式基准，以及这一轮 feature gate 改动和各自的意义。
+- [`query-distributed-split-benchmark-2026-03-30.md`](/home/kould/RustroverProjects/databend/benchmark/query-distributed-split-benchmark-2026-03-30.md) 记录了 `distributed` 做成真实 crate 之后，在同口径 `-j 4` 冷编译下的对齐基准结果。
+- [`query-crate-split-experiments-2026-03-30.md`](/home/kould/RustroverProjects/databend/benchmark/query-crate-split-experiments-2026-03-30.md) 汇总记录了当前“逐个拆、逐个测、按收益决定是否保留”的真 crate 拆分实验方法和阶段性结果。
+- [`query-crate-split-workspaces-2026-03-30.md`](/home/kould/RustroverProjects/databend/benchmark/query-crate-split-workspaces-2026-03-30.md) 说明了如何把多个拆分方向放进独立 workspaces，并从同一份当前实验基线出发进行串行观测。
 
 ## 1. tpch
 

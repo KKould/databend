@@ -171,6 +171,8 @@ databend-enterprise-virtual-column = { workspace = true, optional = true }
 databend-meta-client = { workspace = true }
 databend-meta-plugin-semaphore = { workspace = true }
 databend-meta-runtime = { workspace = true }
+databend-query-distributed = { workspace = true }
+databend-query-runtime-managers = { workspace = true }
 databend-storages-common-blocks = { workspace = true }
 databend-storages-common-cache = { workspace = true }
 databend-storages-common-index = { workspace = true }

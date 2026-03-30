@@ -5959,6 +5959,8 @@ dependencies = [
  "databend-meta-client 260205.4.0",
  "databend-meta-plugin-semaphore",
  "databend-meta-runtime",
+ "databend-query-distributed",
+ "databend-query-runtime-managers",
  "databend-storages-common-blocks",
  "databend-storages-common-cache",
  "databend-storages-common-index",
@@ -6043,6 +6045,57 @@ dependencies = [
  "walkdir",
  "wiremock",
  "zip",
+]
+
+[[package]]
+name = "databend-query-distributed"
+version = "0.1.0"
+dependencies = [
+ "arrow-array 56.2.0",
+ "arrow-flight",
+ "arrow-ipc 56.2.0",
+ "arrow-schema 56.2.0",
+ "async-backtrace",
+ "async-channel",
+ "async-trait",
+ "byteorder",
+ "bytes",
+ "concurrent-queue",
+ "databend-common-base",
+ "databend-common-catalog",
+ "databend-common-exception",
+ "databend-common-expression",
+ "databend-common-functions",
+ "databend-common-grpc",
+ "databend-common-io",
+ "databend-common-pipeline",
+ "databend-common-settings",
+ "databend-common-storage",
+ "databend-common-tracing",
+ "fastrace",
+ "futures",
+ "futures-util",
+ "log",
+ "parking_lot 0.12.3",
+ "petgraph",
+ "serde",
+ "serde_json",
+ "serde_stacker",
+ "tokio",
+ "tonic 0.13.1",
+]
+
+[[package]]
+name = "databend-query-runtime-managers"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "databend-common-exception",
+ "databend-common-meta-app",
+ "hex",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

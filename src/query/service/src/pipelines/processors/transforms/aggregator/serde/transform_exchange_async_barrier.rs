@@ -24,9 +24,9 @@ use databend_common_pipeline::core::ProcessorPtr;
 use databend_common_pipeline_transforms::processors::AsyncTransform;
 use databend_common_pipeline_transforms::processors::AsyncTransformer;
 
+use crate::distributed::ExchangeShuffleMeta;
 use crate::pipelines::processors::transforms::aggregator::FlightSerialized;
 use crate::pipelines::processors::transforms::aggregator::FlightSerializedMeta;
-use crate::servers::flight::v1::exchange::ExchangeShuffleMeta;
 
 pub struct TransformExchangeAsyncBarrier;
 

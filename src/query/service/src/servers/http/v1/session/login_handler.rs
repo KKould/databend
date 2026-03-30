@@ -23,9 +23,9 @@ use poem::web::Json;
 use poem::web::Query;
 
 use crate::auth::Credential;
+use crate::runtime_managers::ClientSessionManager;
 use crate::servers::http::error::HttpErrorCode;
 use crate::servers::http::v1::HttpQueryContext;
-use crate::servers::http::v1::session::client_session_manager::ClientSessionManager;
 
 #[derive(Deserialize, Clone)]
 struct LoginRequest {

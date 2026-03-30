@@ -22,9 +22,9 @@ use databend_common_sql::plans::SetPriorityPlan;
 
 use crate::clusters::ClusterHelper;
 use crate::clusters::FlightParams;
+use crate::distributed::SET_PRIORITY;
 use crate::interpreters::Interpreter;
 use crate::pipelines::PipelineBuildResult;
-use crate::servers::flight::v1::actions::SET_PRIORITY;
 use crate::sessions::QueryContext;
 
 pub struct SetPriorityInterpreter {

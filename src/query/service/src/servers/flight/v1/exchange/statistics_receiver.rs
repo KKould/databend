@@ -31,6 +31,18 @@ use crate::servers::flight::v1::packets::ProgressInfo;
 use crate::sessions::MemoryUpdater;
 use crate::sessions::QueryContext;
 
+fn apply_progress(ctx: &Arc<QueryContext>, source_target: &str, progress_info: &ProgressInfo) {
+    match progress_info {
+        ProgressInfo::ScanProgress(values) => ctx.get_scan_progress().incr(values),
+        ProgressInfo::WriteProgress(values) => ctx.get_write_progress().incr(values),
+        ProgressInfo::ResultProgress(values) => ctx.get_result_progress().incr(values),
+        ProgressInfo::SpillTotalStats(values) => {
+            ctx.set_cluster_spill_progress(source_target, values.clone())
+        }
+        ProgressInfo::MemoryUsage(_, _) => unreachable!(),
+    }
+}
+
 pub struct StatisticsReceiver {
     _runtime: Runtime,
     shutdown_tx: Option<Sender<bool>>,
@@ -157,7 +169,7 @@ impl StatisticsReceiver {
                         continue;
                     }
 
-                    progress_info.inc(source_target, ctx);
+                    apply_progress(ctx, source_target, &progress_info);
                 }
 
                 Ok(false)

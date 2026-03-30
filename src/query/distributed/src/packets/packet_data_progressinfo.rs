@@ -15,7 +15,6 @@
 use std::fmt::Debug;
 use std::io::Read;
 use std::io::Write;
-use std::sync::Arc;
 
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
@@ -24,9 +23,6 @@ use databend_common_base::base::ProgressValues;
 use databend_common_base::base::SpillProgress;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
-
-use crate::sessions::QueryContext;
-use crate::sessions::TableContext;
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
@@ -39,18 +35,6 @@ pub enum ProgressInfo {
 }
 
 impl ProgressInfo {
-    pub fn inc(&self, source_target: &str, ctx: &Arc<QueryContext>) {
-        match self {
-            ProgressInfo::ScanProgress(values) => ctx.get_scan_progress().incr(values),
-            ProgressInfo::WriteProgress(values) => ctx.get_write_progress().incr(values),
-            ProgressInfo::ResultProgress(values) => ctx.get_result_progress().incr(values),
-            ProgressInfo::SpillTotalStats(values) => {
-                ctx.set_cluster_spill_progress(source_target, values.clone())
-            }
-            ProgressInfo::MemoryUsage(_, _) => unreachable!(),
-        };
-    }
-
     pub fn write<T: Write>(self, bytes: &mut T) -> Result<()> {
         let (info_type, values) = match self {
             ProgressInfo::ScanProgress(values) => (1_u8, values),

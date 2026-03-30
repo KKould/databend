@@ -26,14 +26,14 @@ use databend_common_settings::Settings;
 use databend_common_sql::Symbol;
 
 use super::PipelineBuilderData;
+use crate::distributed::DefaultExchangeInjector;
+use crate::distributed::ExchangeInjector;
 use crate::interpreters::CreateTableInterpreter;
 use crate::physical_plans::PhysicalPlan;
 use crate::pipelines::PipelineBuildResult;
 use crate::pipelines::processors::HashJoinBuildState;
 use crate::pipelines::processors::HashJoinState;
 use crate::pipelines::processors::transforms::BasicHashJoinState;
-use crate::servers::flight::v1::exchange::DefaultExchangeInjector;
-use crate::servers::flight::v1::exchange::ExchangeInjector;
 use crate::sessions::QueryContext;
 
 #[derive(Clone)]

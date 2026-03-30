@@ -33,7 +33,7 @@ use fastrace::func_name;
 use log::info;
 use serde::Serialize;
 
-use crate::servers::http::v1::ClientSessionManager;
+use crate::runtime_managers::ClientSessionManager;
 use crate::sessions::Session;
 
 pub struct AuthMgr {

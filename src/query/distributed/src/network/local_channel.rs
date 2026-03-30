@@ -23,9 +23,9 @@ use databend_common_expression::DataBlock;
 use tokio::sync::OwnedSemaphorePermit;
 use tokio::sync::Semaphore;
 
-use crate::servers::flight::v1::network::NetworkInboundChannelSet;
-use crate::servers::flight::v1::network::OutboundChannel;
-use crate::servers::flight::v1::network::inbound_quota::QueueItem;
+use crate::network::NetworkInboundChannelSet;
+use crate::network::OutboundChannel;
+use crate::network::inbound_quota::QueueItem;
 
 pub struct LocalQueueItem {
     data: DataBlock,

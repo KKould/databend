@@ -21,13 +21,13 @@ use databend_common_pipeline::core::Pipeline;
 use databend_common_pipeline_transforms::sorts::SortBound;
 use databend_common_settings::FlightCompression;
 
-use crate::servers::flight::v1::exchange::DataExchange;
-use crate::servers::flight::v1::exchange::DefaultExchangeInjector;
-use crate::servers::flight::v1::exchange::ExchangeInjector;
-use crate::servers::flight::v1::exchange::ExchangeSorting;
-use crate::servers::flight::v1::exchange::MergeExchangeParams;
-use crate::servers::flight::v1::exchange::ShuffleExchangeParams;
-use crate::servers::flight::v1::scatter::FlightScatter;
+use crate::distributed::DataExchange;
+use crate::distributed::DefaultExchangeInjector;
+use crate::distributed::ExchangeInjector;
+use crate::distributed::ExchangeSorting;
+use crate::distributed::FlightScatter;
+use crate::distributed::MergeExchangeParams;
+use crate::distributed::ShuffleExchangeParams;
 use crate::sessions::QueryContext;
 
 pub struct SortInjector {}

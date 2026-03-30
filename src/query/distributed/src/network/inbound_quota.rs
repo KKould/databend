@@ -22,7 +22,7 @@ use tokio::sync::OwnedSemaphorePermit;
 use tokio::sync::Semaphore;
 
 use super::inbound_channel::flight_data_size;
-use crate::servers::flight::v1::network::local_channel::LocalQueueItem;
+use crate::network::local_channel::LocalQueueItem;
 
 /// Item stored in a per-connection sub-queue.
 pub struct RemoteQueueItem {

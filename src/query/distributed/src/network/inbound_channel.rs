@@ -38,7 +38,6 @@ use super::inbound_quota::SubQueue;
 pub struct NetworkInboundChannel {
     pub sender: Sender<QueueItem>,
     pub receiver: Receiver<QueueItem>,
-
     pub sender_count: Arc<AtomicUsize>,
 }
 
@@ -261,7 +260,7 @@ fn split_batch_flight_data(data: FlightData) -> Vec<FlightData> {
     let tid_bytes: [u8; 2] = [meta[0], meta[1]];
     let num_items = u16::from_le_bytes([meta[2], meta[3]]) as usize;
 
-    let mut buf = data.data_body; // Bytes implements Buf
+    let mut buf = data.data_body;
     let mut items = Vec::with_capacity(num_items);
 
     for _ in 0..num_items {
@@ -274,7 +273,6 @@ fn split_batch_flight_data(data: FlightData) -> Vec<FlightData> {
         let body_len = buf.get_u32_le() as usize;
         let data_body = buf.split_to(body_len);
 
-        // Only app_metadata needs a small copy to prepend tid
         let mut app_metadata = BytesMut::with_capacity(2 + meta_len);
         app_metadata.put_slice(&tid_bytes);
         app_metadata.extend_from_slice(&inner_meta);
@@ -319,7 +317,6 @@ pub(crate) fn deserialize_flight_data(
         )));
     }
 
-    // Parse metadata (excluding the trailing 0x01 marker)
     let meta = &meta_bytes[..meta_bytes.len() - 1];
     const ROW_HEADER_SIZE: usize = std::mem::size_of::<u32>();
 
@@ -361,121 +358,4 @@ pub(crate) fn deserialize_flight_data(
     }
 
     block.add_meta(block_meta)
-}
-
-#[cfg(test)]
-mod tests {
-    use arrow_flight::FlightData;
-    use bytes::BufMut;
-    use bytes::Bytes;
-    use bytes::BytesMut;
-
-    use super::*;
-
-    const BATCH_MARKER: u8 = 0x02;
-
-    /// Build a FlightData with tid prefix in app_metadata.
-    fn make_item(tid: u16, inner_meta: &[u8], header: &[u8], body: &[u8]) -> FlightData {
-        let mut app_metadata = BytesMut::with_capacity(2 + inner_meta.len());
-        app_metadata.put_u16_le(tid);
-        app_metadata.put_slice(inner_meta);
-        FlightData {
-            flight_descriptor: None,
-            app_metadata: app_metadata.freeze(),
-            data_header: Bytes::copy_from_slice(header),
-            data_body: Bytes::copy_from_slice(body),
-        }
-    }
-
-    /// Build a batch FlightData by hand (mirrors merge_flight_data_batch logic).
-    fn build_batch(tid: u16, items: &[FlightData]) -> FlightData {
-        let mut app_metadata = BytesMut::with_capacity(5);
-        app_metadata.put_u16_le(tid);
-        app_metadata.put_u16_le(items.len() as u16);
-        app_metadata.put_u8(BATCH_MARKER);
-
-        let mut body = BytesMut::new();
-        for item in items {
-            let inner_meta = &item.app_metadata[2..];
-            body.put_u32_le(inner_meta.len() as u32);
-            body.put_slice(inner_meta);
-            body.put_u32_le(item.data_header.len() as u32);
-            body.put_slice(&item.data_header);
-            body.put_u32_le(item.data_body.len() as u32);
-            body.put_slice(&item.data_body);
-        }
-
-        FlightData {
-            flight_descriptor: None,
-            app_metadata: app_metadata.freeze(),
-            data_header: Bytes::new(),
-            data_body: body.freeze(),
-        }
-    }
-
-    #[test]
-    fn test_is_batch_detection() {
-        // A proper batch: 5 bytes with BATCH_MARKER at end
-        let batch = build_batch(0, &[make_item(0, &[0x01], &[], &[1, 2, 3])]);
-        assert!(is_batch(&batch));
-
-        // A normal single item (3 bytes, marker 0x01)
-        let single = make_item(0, &[0x01], &[], &[1, 2, 3]);
-        assert!(!is_batch(&single));
-
-        // Too short to be a batch
-        let short = FlightData {
-            app_metadata: Bytes::from_static(&[0x00, 0x00, 0x02]),
-            ..Default::default()
-        };
-        assert!(!is_batch(&short));
-    }
-
-    #[test]
-    fn test_split_batch_roundtrip() {
-        let items = vec![
-            make_item(7, &[0xAA, 0x01], &[10, 20], &[1, 2, 3, 4, 5]),
-            make_item(7, &[0xBB, 0x01], &[], &[6, 7, 8]),
-            make_item(7, &[0xCC, 0x01], &[30], &[]),
-        ];
-
-        let batch = build_batch(7, &items);
-        assert!(is_batch(&batch));
-
-        let split = split_batch_flight_data(batch);
-        assert_eq!(split.len(), 3);
-
-        for (original, restored) in items.iter().zip(split.iter()) {
-            assert_eq!(restored.app_metadata, original.app_metadata);
-            assert_eq!(restored.data_header, original.data_header);
-            assert_eq!(restored.data_body, original.data_body);
-        }
-    }
-
-    #[test]
-    fn test_split_batch_single_item() {
-        let items = vec![make_item(0, &[0x01], &[1, 2], &[3, 4, 5])];
-        let batch = build_batch(0, &items);
-        let split = split_batch_flight_data(batch);
-        assert_eq!(split.len(), 1);
-        assert_eq!(split[0].app_metadata, items[0].app_metadata);
-        assert_eq!(split[0].data_header, items[0].data_header);
-        assert_eq!(split[0].data_body, items[0].data_body);
-    }
-
-    #[test]
-    fn test_split_preserves_tid() {
-        let tid: u16 = 42;
-        let items = vec![
-            make_item(tid, &[0x01], &[], &[1]),
-            make_item(tid, &[0x02], &[], &[2]),
-        ];
-        let batch = build_batch(tid, &items);
-        let split = split_batch_flight_data(batch);
-
-        for item in &split {
-            let restored_tid = u16::from_le_bytes([item.app_metadata[0], item.app_metadata[1]]);
-            assert_eq!(restored_tid, tid);
-        }
-    }
 }

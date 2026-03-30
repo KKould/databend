@@ -45,7 +45,7 @@ use databend_common_pipeline_transforms::sorts::core::select_row_type;
 use databend_common_pipeline_transforms::traits::SortSpiller;
 
 use super::*;
-use crate::servers::flight::v1::exchange::ExchangeInjector;
+use crate::distributed::ExchangeInjector;
 use crate::sessions::QueryContext;
 
 enum SortType {

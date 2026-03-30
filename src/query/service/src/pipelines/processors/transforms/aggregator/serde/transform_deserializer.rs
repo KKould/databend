@@ -35,6 +35,10 @@ use databend_common_pipeline_transforms::processors::AccumulatingTransform;
 use databend_common_pipeline_transforms::processors::AccumulatingTransformer;
 use databend_common_storages_parquet::deserialize_row_group_meta_from_bytes;
 
+use crate::distributed::DataPacket;
+use crate::distributed::ExchangeDeserializeMeta;
+use crate::distributed::FragmentData;
+use crate::distributed::serde::deserialize_block;
 use crate::pipelines::processors::transforms::aggregator::AggregateMeta;
 use crate::pipelines::processors::transforms::aggregator::AggregateSerdeMeta;
 use crate::pipelines::processors::transforms::aggregator::BUCKET_TYPE;
@@ -45,10 +49,6 @@ use crate::pipelines::processors::transforms::aggregator::PARTITIONED_AGGREGATE_
 use crate::pipelines::processors::transforms::aggregator::SPILLED_TYPE;
 use crate::pipelines::processors::transforms::aggregator::SerializedPayload;
 use crate::pipelines::processors::transforms::aggregator::exchange_defines;
-use crate::servers::flight::v1::exchange::serde::ExchangeDeserializeMeta;
-use crate::servers::flight::v1::exchange::serde::deserialize_block;
-use crate::servers::flight::v1::packets::DataPacket;
-use crate::servers::flight::v1::packets::FragmentData;
 
 pub struct TransformDeserializer {
     schema: DataSchemaRef,

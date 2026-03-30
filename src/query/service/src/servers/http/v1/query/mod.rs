@@ -19,9 +19,8 @@ pub mod blocks_serializer;
 pub mod execute_state;
 pub mod expirable;
 pub mod expiring_map;
-mod http_query;
+pub(crate) mod http_query;
 mod http_query_context;
-mod http_query_manager;
 mod page_manager;
 pub mod sized_spsc;
 
@@ -38,8 +37,9 @@ pub use http_query::HttpSessionConf;
 pub use http_query::HttpSessionStateInternal;
 pub use http_query::ResponseState;
 pub use http_query_context::HttpQueryContext;
-pub(crate) use http_query_manager::CloseReason;
-pub use http_query_manager::HttpQueryManager;
 pub use page_manager::PageManager;
 pub use page_manager::ResponseData;
 pub use sized_spsc::Wait;
+
+pub(crate) use crate::runtime_managers::query::CloseReason;
+pub use crate::runtime_managers::query::HttpQueryManager;
