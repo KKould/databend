@@ -16,25 +16,37 @@
 databend_common_tracing::register_module_tag!("[TABLE-HOOK]");
 
 use std::sync::Arc;
+#[cfg(feature = "fuse-management")]
 use std::time::Instant;
 
-use databend_common_catalog::lock::LockTableOption;
+#[cfg(feature = "fuse-management")]
 use databend_common_catalog::table_context::TableContext;
+use databend_common_catalog::lock::LockTableOption;
 use databend_common_pipeline::core::Pipeline;
 use databend_common_sql::executor::physical_plans::MutationKind;
+#[cfg(feature = "fuse-management")]
 use log::info;
+#[cfg(feature = "fuse-management")]
 use log::warn;
 
+#[cfg(feature = "fuse-management")]
 use crate::interpreters::hook::analyze_hook::AnalyzeDesc;
+#[cfg(feature = "fuse-management")]
 use crate::interpreters::hook::analyze_hook::hook_analyze;
+#[cfg(feature = "fuse-management")]
 use crate::interpreters::hook::compact_hook::CompactHookTraceCtx;
+#[cfg(feature = "fuse-management")]
 use crate::interpreters::hook::compact_hook::CompactTargetTableDescription;
+#[cfg(feature = "fuse-management")]
 use crate::interpreters::hook::compact_hook::hook_compact;
+#[cfg(feature = "fuse-management")]
 use crate::interpreters::hook::refresh_hook::RefreshDesc;
+#[cfg(feature = "fuse-management")]
 use crate::interpreters::hook::refresh_hook::hook_refresh;
 use crate::sessions::QueryContext;
 
 /// Hook operator.
+#[cfg_attr(not(feature = "fuse-management"), allow(dead_code))]
 pub struct HookOperator {
     ctx: Arc<QueryContext>,
     catalog: String,
@@ -80,43 +92,52 @@ impl HookOperator {
     #[fastrace::trace]
     #[async_backtrace::framed]
     pub async fn execute_compact(&self, pipeline: &mut Pipeline) {
-        match self.ctx.get_settings().get_enable_compact_after_write() {
-            Ok(false) => {
-                info!("Auto compaction is disabled");
-                return;
-            }
-            Err(e) => {
-                // swallow the exception, compaction hook should not prevent the main operation.
-                warn!(
-                    "Failed to retrieve compaction settings, continuing without compaction: {}",
-                    e
-                );
-                return;
-            }
-            Ok(true) => {
-                // auto compaction is enabled, proceed with the compaction process.
-            }
+        #[cfg(not(feature = "fuse-management"))]
+        {
+            let _ = pipeline;
+            return;
         }
 
-        let compact_target = CompactTargetTableDescription {
-            catalog: self.catalog.to_owned(),
-            database: self.database.to_owned(),
-            table: self.table.to_owned(),
-        };
+        #[cfg(feature = "fuse-management")]
+        {
+            match self.ctx.get_settings().get_enable_compact_after_write() {
+                Ok(false) => {
+                    info!("Auto compaction is disabled");
+                    return;
+                }
+                Err(e) => {
+                    // swallow the exception, compaction hook should not prevent the main operation.
+                    warn!(
+                        "Failed to retrieve compaction settings, continuing without compaction: {}",
+                        e
+                    );
+                    return;
+                }
+                Ok(true) => {
+                    // auto compaction is enabled, proceed with the compaction process.
+                }
+            }
 
-        let trace_ctx = CompactHookTraceCtx {
-            start: Instant::now(),
-            operation_name: self.mutation_kind.to_string(),
-        };
+            let compact_target = CompactTargetTableDescription {
+                catalog: self.catalog.to_owned(),
+                database: self.database.to_owned(),
+                table: self.table.to_owned(),
+            };
 
-        hook_compact(
-            self.ctx.clone(),
-            pipeline,
-            compact_target,
-            trace_ctx,
-            self.lock_opt.clone(),
-        )
-        .await;
+            let trace_ctx = CompactHookTraceCtx {
+                start: Instant::now(),
+                operation_name: self.mutation_kind.to_string(),
+            };
+
+            hook_compact(
+                self.ctx.clone(),
+                pipeline,
+                compact_target,
+                trace_ctx,
+                self.lock_opt.clone(),
+            )
+            .await;
+        }
     }
 
     /// Execute the refresh hook operator.
@@ -125,25 +146,43 @@ impl HookOperator {
     #[fastrace::trace]
     #[async_backtrace::framed]
     pub async fn execute_refresh(&self, pipeline: &mut Pipeline) {
-        let refresh_desc = RefreshDesc {
-            catalog: self.catalog.to_owned(),
-            database: self.database.to_owned(),
-            table: self.table.to_owned(),
-        };
+        #[cfg(not(feature = "fuse-management"))]
+        {
+            let _ = pipeline;
+            return;
+        }
 
-        hook_refresh(self.ctx.clone(), pipeline, refresh_desc).await;
+        #[cfg(feature = "fuse-management")]
+        {
+            let refresh_desc = RefreshDesc {
+                catalog: self.catalog.to_owned(),
+                database: self.database.to_owned(),
+                table: self.table.to_owned(),
+            };
+
+            hook_refresh(self.ctx.clone(), pipeline, refresh_desc).await;
+        }
     }
 
     /// Execute the analyze hook operator.
     #[fastrace::trace]
     #[async_backtrace::framed]
     pub async fn execute_analyze(&self, pipeline: &mut Pipeline) {
-        let desc = AnalyzeDesc {
-            catalog: self.catalog.to_owned(),
-            database: self.database.to_owned(),
-            table: self.table.to_owned(),
-        };
+        #[cfg(not(feature = "fuse-management"))]
+        {
+            let _ = pipeline;
+            return;
+        }
 
-        hook_analyze(self.ctx.clone(), pipeline, desc).await;
+        #[cfg(feature = "fuse-management")]
+        {
+            let desc = AnalyzeDesc {
+                catalog: self.catalog.to_owned(),
+                database: self.database.to_owned(),
+                table: self.table.to_owned(),
+            };
+
+            hook_analyze(self.ctx.clone(), pipeline, desc).await;
+        }
     }
 }

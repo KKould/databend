@@ -41,7 +41,6 @@ use databend_common_sql::plans::UnsetObjectTagsPlan;
 use databend_common_sql::plans::UserTagSetTarget;
 use databend_common_sql::plans::ViewTagSetTarget;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
 use databend_common_users::UserApiProvider;
 use log::info;
 
@@ -51,6 +50,8 @@ use crate::meta_txn_error;
 use crate::pipelines::PipelineBuildResult;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
+
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct SetObjectTagsInterpreter {
     ctx: Arc<QueryContext>,

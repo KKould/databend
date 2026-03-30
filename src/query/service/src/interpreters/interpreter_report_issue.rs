@@ -39,7 +39,6 @@ use databend_common_expression::types::StringType;
 use databend_common_settings::Settings;
 use databend_common_sql::Planner;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
 use derive_visitor::DriveMut;
 use derive_visitor::VisitorMut;
 use futures_util::StreamExt;
@@ -54,6 +53,8 @@ use crate::pipelines::PipelineBuildResult;
 use crate::schedulers::ServiceQueryExecutor;
 use crate::sessions::QueryContext;
 use crate::sql::plans::Plan;
+
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct ReportIssueInterpreter {
     sql: String,

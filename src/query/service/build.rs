@@ -21,7 +21,10 @@ fn main() {
 
     // Features declared in `src/query/service/Cargo.toml`.
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_SIMD");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_FULL_BUILD_INFO");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_SCRIPT_UDF");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_PYTHON_UDF");
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE_CLOUD_CONTROL");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_DISABLE_INITIAL_EXEC_TLS");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_JEMALLOC");
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE_MEMORY_PROFILING");

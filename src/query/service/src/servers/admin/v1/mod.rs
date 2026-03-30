@@ -19,6 +19,7 @@ pub mod procedures;
 pub mod processes;
 pub mod query_dump;
 pub mod settings;
+#[cfg(feature = "storage-stream")]
 pub mod stream_status;
 pub mod system;
 pub mod table_statistics;

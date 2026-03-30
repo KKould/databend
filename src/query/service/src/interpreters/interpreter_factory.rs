@@ -33,6 +33,7 @@ use super::interpreter_index_drop::DropIndexInterpreter;
 use super::interpreter_mutation::MutationInterpreter;
 use super::interpreter_table_index_create::CreateTableIndexInterpreter;
 use super::interpreter_table_index_drop::DropTableIndexInterpreter;
+#[cfg(feature = "fuse-management")]
 use super::interpreter_table_index_refresh::RefreshTableIndexInterpreter;
 use super::interpreter_table_modify_connection::ModifyTableConnectionInterpreter;
 use super::interpreter_table_set_options::SetOptionsInterpreter;
@@ -41,9 +42,11 @@ use super::*;
 use crate::interpreters::AlterDatabaseInterpreter;
 use crate::interpreters::AlterUserInterpreter;
 use crate::interpreters::AlterUserStageInterpreter;
+#[cfg(feature = "storage-stream")]
 use crate::interpreters::CreateStreamInterpreter;
 use crate::interpreters::CreateTagInterpreter;
 use crate::interpreters::DescUserInterpreter;
+#[cfg(feature = "storage-stream")]
 use crate::interpreters::DropStreamInterpreter;
 use crate::interpreters::DropTagInterpreter;
 use crate::interpreters::DropUserInterpreter;
@@ -59,7 +62,9 @@ use crate::interpreters::interpreter_connection_create::CreateConnectionInterpre
 use crate::interpreters::interpreter_connection_desc::DescConnectionInterpreter;
 use crate::interpreters::interpreter_connection_drop::DropConnectionInterpreter;
 use crate::interpreters::interpreter_connection_show::ShowConnectionsInterpreter;
+#[cfg(feature = "storage-stage")]
 use crate::interpreters::interpreter_copy_into_location::CopyIntoLocationInterpreter;
+#[cfg(feature = "storage-stage")]
 use crate::interpreters::interpreter_copy_into_table::CopyIntoTableInterpreter;
 use crate::interpreters::interpreter_create_warehouses::CreateWarehouseInterpreter;
 use crate::interpreters::interpreter_create_workload_group::CreateWorkloadGroupInterpreter;
@@ -70,11 +75,16 @@ use crate::interpreters::interpreter_file_format_create::CreateFileFormatInterpr
 use crate::interpreters::interpreter_file_format_drop::DropFileFormatInterpreter;
 use crate::interpreters::interpreter_file_format_show::ShowFileFormatsInterpreter;
 use crate::interpreters::interpreter_inspect_warehouse::InspectWarehouseInterpreter;
+#[cfg(feature = "cloud-control")]
 use crate::interpreters::interpreter_notification_alter::AlterNotificationInterpreter;
+#[cfg(feature = "cloud-control")]
 use crate::interpreters::interpreter_notification_create::CreateNotificationInterpreter;
+#[cfg(feature = "cloud-control")]
 use crate::interpreters::interpreter_notification_desc::DescNotificationInterpreter;
+#[cfg(feature = "cloud-control")]
 use crate::interpreters::interpreter_notification_drop::DropNotificationInterpreter;
 use crate::interpreters::interpreter_presign::PresignInterpreter;
+#[cfg(feature = "sql-script")]
 use crate::interpreters::interpreter_procedure_call::CallProcedureInterpreter;
 use crate::interpreters::interpreter_procedure_create::CreateProcedureInterpreter;
 use crate::interpreters::interpreter_procedure_drop::DropProcedureInterpreter;
@@ -119,15 +129,55 @@ use crate::interpreters::interpreter_unassign_warehouse_nodes::UnassignWarehouse
 use crate::interpreters::interpreter_unset_workload_group_quotas::UnsetWorkloadGroupQuotasInterpreter;
 use crate::interpreters::interpreter_use_warehouse::UseWarehouseInterpreter;
 use crate::interpreters::interpreter_view_describe::DescribeViewInterpreter;
+#[cfg(feature = "cloud-control")]
 use crate::interpreters::interpreter_worker_alter::AlterWorkerInterpreter;
+#[cfg(feature = "cloud-control")]
 use crate::interpreters::interpreter_worker_create::CreateWorkerInterpreter;
+#[cfg(feature = "cloud-control")]
 use crate::interpreters::interpreter_worker_drop::DropWorkerInterpreter;
+#[cfg(feature = "cloud-control")]
 use crate::interpreters::interpreter_worker_show::ShowWorkersInterpreter;
 use crate::sessions::QueryContext;
 use crate::sql::plans::Plan;
 
 /// InterpreterFactory is the entry of Interpreter.
 pub struct InterpreterFactory;
+
+fn cloud_control_disabled(op: &str) -> ErrorCode {
+    ErrorCode::Unimplemented(format!(
+        "{op} requires cargo feature 'cloud-control', rebuild with it enabled"
+    ))
+}
+
+fn stage_disabled(op: &str) -> ErrorCode {
+    ErrorCode::Unimplemented(format!(
+        "{op} requires cargo feature 'storage-stage', rebuild with it enabled"
+    ))
+}
+
+fn virtual_column_disabled(op: &str) -> ErrorCode {
+    ErrorCode::Unimplemented(format!(
+        "{op} requires cargo feature 'virtual-column', rebuild with it enabled"
+    ))
+}
+
+fn stream_disabled(op: &str) -> ErrorCode {
+    ErrorCode::Unimplemented(format!(
+        "{op} requires cargo feature 'storage-stream', rebuild with it enabled"
+    ))
+}
+
+fn sql_script_disabled(op: &str) -> ErrorCode {
+    ErrorCode::Unimplemented(format!(
+        "{op} requires cargo feature 'sql-script', rebuild with it enabled"
+    ))
+}
+
+fn fuse_management_disabled(op: &str) -> ErrorCode {
+    ErrorCode::Unimplemented(format!(
+        "{op} requires cargo feature 'fuse-management', rebuild with it enabled"
+    ))
+}
 
 /// InterpreterFactory provides `get` method which transforms `Plan` into the corresponding interpreter.
 /// Such as: Plan::Query -> InterpreterSelectV2
@@ -156,7 +206,10 @@ impl InterpreterFactory {
             Plan::ShowWarehouses => Ok(Arc::new(ShowWarehousesInterpreter::try_create(
                 ctx.clone(),
             )?)),
+            #[cfg(feature = "cloud-control")]
             Plan::ShowWorkers => Ok(Arc::new(ShowWorkersInterpreter::try_create(ctx.clone())?)),
+            #[cfg(not(feature = "cloud-control"))]
+            Plan::ShowWorkers => Err(cloud_control_disabled("SHOW WORKERS")),
             Plan::ShowOnlineNodes => Ok(Arc::new(ShowOnlineNodesInterpreter::try_create(
                 ctx.clone(),
             )?)),
@@ -168,18 +221,24 @@ impl InterpreterFactory {
                 ctx.clone(),
                 *v.clone(),
             )?)),
+            #[cfg(feature = "cloud-control")]
             Plan::CreateWorker(v) => Ok(Arc::new(CreateWorkerInterpreter::try_create(
                 ctx.clone(),
                 *v.clone(),
             )?)),
+            #[cfg(not(feature = "cloud-control"))]
+            Plan::CreateWorker(_) => Err(cloud_control_disabled("CREATE WORKER")),
             Plan::DropWarehouse(v) => Ok(Arc::new(DropWarehouseInterpreter::try_create(
                 ctx.clone(),
                 *v.clone(),
             )?)),
+            #[cfg(feature = "cloud-control")]
             Plan::DropWorker(v) => Ok(Arc::new(DropWorkerInterpreter::try_create(
                 ctx.clone(),
                 *v.clone(),
             )?)),
+            #[cfg(not(feature = "cloud-control"))]
+            Plan::DropWorker(_) => Err(cloud_control_disabled("DROP WORKER")),
             Plan::ResumeWarehouse(v) => Ok(Arc::new(ResumeWarehouseInterpreter::try_create(
                 ctx.clone(),
                 *v.clone(),
@@ -192,10 +251,13 @@ impl InterpreterFactory {
                 ctx.clone(),
                 *v.clone(),
             )?)),
+            #[cfg(feature = "cloud-control")]
             Plan::AlterWorker(v) => Ok(Arc::new(AlterWorkerInterpreter::try_create(
                 ctx.clone(),
                 *v.clone(),
             )?)),
+            #[cfg(not(feature = "cloud-control"))]
+            Plan::AlterWorker(_) => Err(cloud_control_disabled("ALTER WORKER")),
             Plan::InspectWarehouse(v) => Ok(Arc::new(InspectWarehouseInterpreter::try_create(
                 ctx.clone(),
                 *v.clone(),
@@ -304,13 +366,19 @@ impl InterpreterFactory {
                 ctx,
                 sql.clone(),
             )?)),
+            #[cfg(feature = "storage-stage")]
             Plan::CopyIntoTable(copy_plan) => Ok(Arc::new(CopyIntoTableInterpreter::try_create(
                 ctx,
                 *copy_plan.clone(),
             )?)),
+            #[cfg(not(feature = "storage-stage"))]
+            Plan::CopyIntoTable(_) => Err(stage_disabled("COPY INTO TABLE")),
+            #[cfg(feature = "storage-stage")]
             Plan::CopyIntoLocation(copy_plan) => Ok(Arc::new(
                 CopyIntoLocationInterpreter::try_create(ctx, *copy_plan.clone())?,
             )),
+            #[cfg(not(feature = "storage-stage"))]
+            Plan::CopyIntoLocation(_) => Err(stage_disabled("COPY INTO LOCATION")),
             // catalogs
             Plan::ShowCreateCatalog(plan) => Ok(Arc::new(
                 ShowCreateCatalogInterpreter::try_create(ctx, *plan.clone())?,
@@ -414,11 +482,14 @@ impl InterpreterFactory {
             Plan::RefreshTableCache(refresh_table_cache) => Ok(Arc::new(
                 RefreshTableCacheInterpreter::try_create(ctx, *refresh_table_cache.clone())?,
             )),
+            #[cfg(feature = "fuse-management")]
             Plan::ReclusterTable(recluster) => Ok(Arc::new(ReclusterTableInterpreter::try_create(
                 ctx,
                 *recluster.clone(),
                 LockTableOption::LockWithRetry,
             )?)),
+            #[cfg(not(feature = "fuse-management"))]
+            Plan::ReclusterTable(_) => Err(fuse_management_disabled("RECLUSTER TABLE")),
             Plan::TruncateTable(truncate_table) => Ok(Arc::new(
                 TruncateTableInterpreter::try_create(ctx, *truncate_table.clone())?,
             )),
@@ -437,20 +508,26 @@ impl InterpreterFactory {
                     *need_purge,
                 )?))
             }
+            #[cfg(feature = "fuse-management")]
             Plan::VacuumTable(vacuum_table) => Ok(Arc::new(VacuumTableInterpreter::try_create(
                 ctx,
                 *vacuum_table.clone(),
             )?)),
+            #[cfg(not(feature = "fuse-management"))]
+            Plan::VacuumTable(_) => Err(fuse_management_disabled("VACUUM TABLE")),
             Plan::VacuumDropTable(vacuum_drop_table) => Ok(Arc::new(
                 VacuumDropTablesInterpreter::try_create(ctx, *vacuum_drop_table.clone())?,
             )),
             Plan::VacuumTemporaryFiles(vacuum_temporary_files) => Ok(Arc::new(
                 VacuumTemporaryFilesInterpreter::try_create(ctx, *vacuum_temporary_files.clone())?,
             )),
+            #[cfg(feature = "fuse-management")]
             Plan::AnalyzeTable(analyze_table) => Ok(Arc::new(AnalyzeTableInterpreter::try_create(
                 ctx,
                 *analyze_table.clone(),
             )?)),
+            #[cfg(not(feature = "fuse-management"))]
+            Plan::AnalyzeTable(_) => Err(fuse_management_disabled("ANALYZE TABLE")),
             Plan::ExistsTable(exists_table) => Ok(Arc::new(ExistsTableInterpreter::try_create(
                 ctx,
                 *exists_table.clone(),
@@ -500,14 +577,20 @@ impl InterpreterFactory {
             )?)),
 
             // Streams
+            #[cfg(feature = "storage-stream")]
             Plan::CreateStream(create_stream) => Ok(Arc::new(CreateStreamInterpreter::try_create(
                 ctx,
                 *create_stream.clone(),
             )?)),
+            #[cfg(not(feature = "storage-stream"))]
+            Plan::CreateStream(_) => Err(stream_disabled("CREATE STREAM")),
+            #[cfg(feature = "storage-stream")]
             Plan::DropStream(drop_stream) => Ok(Arc::new(DropStreamInterpreter::try_create(
                 ctx,
                 *drop_stream.clone(),
             )?)),
+            #[cfg(not(feature = "storage-stream"))]
+            Plan::DropStream(_) => Err(stream_disabled("DROP STREAM")),
 
             // dynamic tables
             Plan::CreateDynamicTable(_) => Err(ErrorCode::Unimplemented("todo")),
@@ -521,10 +604,13 @@ impl InterpreterFactory {
                 ctx,
                 *index.clone(),
             )?)),
+            #[cfg(feature = "fuse-management")]
             Plan::RefreshIndex(index) => Ok(Arc::new(RefreshIndexInterpreter::try_create(
                 ctx,
                 *index.clone(),
             )?)),
+            #[cfg(not(feature = "fuse-management"))]
+            Plan::RefreshIndex(_) => Err(fuse_management_disabled("REFRESH INDEX")),
             Plan::CreateTableIndex(index) => Ok(Arc::new(CreateTableIndexInterpreter::try_create(
                 ctx,
                 *index.clone(),
@@ -533,16 +619,25 @@ impl InterpreterFactory {
                 ctx,
                 *index.clone(),
             )?)),
+            #[cfg(feature = "fuse-management")]
             Plan::RefreshTableIndex(index) => Ok(Arc::new(
                 RefreshTableIndexInterpreter::try_create(ctx, *index.clone())?,
             )),
+            #[cfg(not(feature = "fuse-management"))]
+            Plan::RefreshTableIndex(_) => Err(fuse_management_disabled("REFRESH TABLE INDEX")),
             // Virtual columns
+            #[cfg(feature = "virtual-column")]
             Plan::RefreshVirtualColumn(refresh_virtual_column) => Ok(Arc::new(
                 RefreshVirtualColumnInterpreter::try_create(ctx, *refresh_virtual_column.clone())?,
             )),
+            #[cfg(not(feature = "virtual-column"))]
+            Plan::RefreshVirtualColumn(_) => Err(virtual_column_disabled("REFRESH VIRTUAL COLUMN")),
+            #[cfg(feature = "virtual-column")]
             Plan::VacuumVirtualColumn(vacuum_virtual_column) => Ok(Arc::new(
                 VacuumVirtualColumnInterpreter::try_create(ctx, *vacuum_virtual_column.clone())?,
             )),
+            #[cfg(not(feature = "virtual-column"))]
+            Plan::VacuumVirtualColumn(_) => Err(virtual_column_disabled("VACUUM VIRTUAL COLUMN")),
             // Users
             Plan::CreateUser(create_user) => Ok(Arc::new(CreateUserInterpreter::try_create(
                 ctx,
@@ -784,29 +879,44 @@ impl InterpreterFactory {
             Plan::Begin => Ok(Arc::new(BeginInterpreter::try_create(ctx)?)),
             Plan::Commit => Ok(Arc::new(CommitInterpreter::try_create(ctx)?)),
             Plan::Abort => Ok(Arc::new(AbortInterpreter::try_create(ctx)?)),
+            #[cfg(feature = "cloud-control")]
             Plan::CreateNotification(p) => Ok(Arc::new(CreateNotificationInterpreter::try_create(
                 ctx,
                 *p.clone(),
             )?)),
+            #[cfg(not(feature = "cloud-control"))]
+            Plan::CreateNotification(_) => Err(cloud_control_disabled("CREATE NOTIFICATION")),
+            #[cfg(feature = "cloud-control")]
             Plan::AlterNotification(p) => Ok(Arc::new(AlterNotificationInterpreter::try_create(
                 ctx,
                 *p.clone(),
             )?)),
+            #[cfg(not(feature = "cloud-control"))]
+            Plan::AlterNotification(_) => Err(cloud_control_disabled("ALTER NOTIFICATION")),
+            #[cfg(feature = "cloud-control")]
             Plan::DropNotification(p) => Ok(Arc::new(DropNotificationInterpreter::try_create(
                 ctx,
                 *p.clone(),
             )?)),
+            #[cfg(not(feature = "cloud-control"))]
+            Plan::DropNotification(_) => Err(cloud_control_disabled("DROP NOTIFICATION")),
+            #[cfg(feature = "cloud-control")]
             Plan::DescNotification(p) => Ok(Arc::new(DescNotificationInterpreter::try_create(
                 ctx,
                 *p.clone(),
             )?)),
+            #[cfg(not(feature = "cloud-control"))]
+            Plan::DescNotification(_) => Err(cloud_control_disabled("DESC NOTIFICATION")),
             Plan::InsertMultiTable(p) => {
                 Ok(InsertMultiTableInterpreter::try_create(ctx, *p.clone())?)
             }
+            #[cfg(feature = "sql-script")]
             Plan::ExecuteImmediate(p) => Ok(Arc::new(ExecuteImmediateInterpreter::try_create(
                 ctx,
                 *p.clone(),
             )?)),
+            #[cfg(not(feature = "sql-script"))]
+            Plan::ExecuteImmediate(_) => Err(sql_script_disabled("EXECUTE IMMEDIATE")),
             Plan::CreateSequence(p) => Ok(Arc::new(CreateSequenceInterpreter::try_create(
                 ctx,
                 *p.clone(),
@@ -852,10 +962,13 @@ impl InterpreterFactory {
             Plan::DescProcedure(p) => {
                 Ok(Arc::new(DescProcedureInterpreter::try_create(*p.clone())?))
             }
+            #[cfg(feature = "sql-script")]
             Plan::CallProcedure(p) => Ok(Arc::new(CallProcedureInterpreter::try_create(
                 ctx,
                 *p.clone(),
             )?)),
+            #[cfg(not(feature = "sql-script"))]
+            Plan::CallProcedure(_) => Err(sql_script_disabled("CALL PROCEDURE")),
             Plan::ShowWorkloadGroups => {
                 Ok(Arc::new(ShowWorkloadGroupsInterpreter::try_create(ctx)?))
             }

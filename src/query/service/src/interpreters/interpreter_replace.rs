@@ -51,6 +51,7 @@ use crate::interpreters::InterpreterPtr;
 use crate::interpreters::SelectInterpreter;
 use crate::interpreters::common::check_deduplicate_label;
 use crate::interpreters::common::dml_build_update_stream_req;
+#[cfg(feature = "storage-stage")]
 use crate::interpreters::interpreter_copy_into_table::CopyIntoTableInterpreter;
 use crate::physical_plans::CommitSink;
 use crate::physical_plans::CommitType;
@@ -397,6 +398,9 @@ impl ReplaceInterpreter {
         purge_info: &mut Option<(Vec<StageFileInfo>, StageInfo, CopyIntoTableOptions)>,
         table_meta_timestamps: TableMetaTimestamps,
     ) -> Result<ReplaceSourceCtx> {
+        #[cfg(not(feature = "storage-stage"))]
+        let _ = (&table_info, purge_info, table_meta_timestamps);
+
         match source {
             InsertInputSource::Values(source) => self
                 .connect_value_source(schema.clone(), source)
@@ -411,6 +415,7 @@ impl ReplaceInterpreter {
                 self.connect_query_plan_source(ctx.clone(), plan).await
             }
             InsertInputSource::Stage(plan) => match *plan.clone() {
+                #[cfg(feature = "storage-stage")]
                 Plan::CopyIntoTable(copy_plan) => {
                     let interpreter =
                         CopyIntoTableInterpreter::try_create(ctx.clone(), *copy_plan.clone())?;
@@ -432,6 +437,10 @@ impl ReplaceInterpreter {
                         bind_context: None,
                     })
                 }
+                #[cfg(not(feature = "storage-stage"))]
+                Plan::CopyIntoTable(_) => Err(ErrorCode::Unimplemented(
+                    "REPLACE INTO ... FROM stage requires cargo feature 'storage-stage'",
+                )),
                 _ => unreachable!("plan in InsertInputSource::Stag must be CopyIntoTable"),
             },
             InsertInputSource::StreamingLoad { .. } => {

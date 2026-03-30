@@ -26,8 +26,11 @@ use databend_common_storages_basic::NullTable;
 use databend_common_storages_basic::RandomTable;
 use databend_common_storages_basic::RecursiveCteMemoryTable;
 use databend_common_storages_basic::view_table::ViewTable;
+#[cfg(feature = "storage-delta")]
 use databend_common_storages_delta::DeltaTable;
+#[cfg(feature = "storage-iceberg")]
 use databend_common_storages_iceberg::IcebergTable;
+#[cfg(feature = "storage-stream")]
 use databend_common_storages_stream::stream_table::StreamTable;
 
 use crate::Table;
@@ -156,18 +159,19 @@ impl StorageFactory {
         });
 
         // Register STREAM table engine
+        #[cfg(feature = "storage-stream")]
         creators.insert("STREAM".to_string(), Storage {
             creator: Arc::new(StreamTable::try_create),
             descriptor: Arc::new(StreamTable::description),
         });
 
-        // Register ICEBERG table engine
+        #[cfg(feature = "storage-iceberg")]
         creators.insert("ICEBERG".to_string(), Storage {
             creator: Arc::new(IcebergTable::try_create),
             descriptor: Arc::new(IcebergTable::description),
         });
 
-        // Register DELTA table engine
+        #[cfg(feature = "storage-delta")]
         creators.insert("DELTA".to_string(), Storage {
             creator: Arc::new(DeltaTable::try_create),
             descriptor: Arc::new(DeltaTable::description),

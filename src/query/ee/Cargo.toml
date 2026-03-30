@@ -7,6 +7,57 @@ name = "databend-enterprise-query"
 publish = { workspace = true }
 version = { workspace = true }
 
+[features]
+default = [
+    "simd",
+    "full-build-info",
+    "sql-script",
+    "script-udf",
+    "cloud-control",
+    "storage-stream",
+    "virtual-column",
+    "fuse-management",
+    "storage-stage",
+    "storage-azblob",
+    "storage-cos",
+    "storage-delta",
+    "storage-gcs",
+    "storage-hive",
+    "storage-huggingface",
+    "storage-iceberg",
+    "storage-ipfs",
+    "storage-obs",
+    "storage-oss",
+    "storage-webhdfs",
+]
+simd = ["databend-query/simd"]
+full-build-info = ["databend-common-version/full-build-info", "databend-query/full-build-info"]
+sql-script = ["databend-query/sql-script"]
+script-udf = ["databend-query/script-udf"]
+cloud-control = ["databend-query/cloud-control"]
+storage-stream = [
+    "databend-query/storage-stream",
+    "dep:databend-common-storages-stream",
+    "dep:databend-enterprise-stream-handler",
+]
+virtual-column = [
+    "databend-query/virtual-column",
+    "dep:databend-enterprise-virtual-column",
+]
+fuse-management = ["databend-query/fuse-management"]
+storage-stage = ["databend-query/storage-stage"]
+storage-azblob = ["databend-query/storage-azblob"]
+storage-cos = ["databend-query/storage-cos"]
+storage-delta = ["databend-query/storage-delta"]
+storage-gcs = ["databend-query/storage-gcs"]
+storage-hive = ["databend-query/storage-hive"]
+storage-huggingface = ["databend-query/storage-huggingface"]
+storage-iceberg = ["databend-query/storage-iceberg"]
+storage-ipfs = ["databend-query/storage-ipfs"]
+storage-obs = ["databend-query/storage-obs"]
+storage-oss = ["databend-query/storage-oss"]
+storage-webhdfs = ["databend-query/storage-webhdfs"]
+
 [dependencies]
 async-backtrace = { workspace = true }
 async-trait = { workspace = true }
@@ -27,12 +78,12 @@ databend-common-meta-store = { workspace = true }
 databend-common-metrics = { workspace = true }
 databend-common-pipeline = { workspace = true }
 databend-common-pipeline-transforms = { workspace = true }
-databend-common-sql = { workspace = true }
+databend-common-sql = { path = "../sql", default-features = false }
 databend-common-storage = { workspace = true }
 databend-common-storages-fuse = { workspace = true }
-databend-common-storages-stream = { workspace = true }
+databend-common-storages-stream = { workspace = true, optional = true }
 databend-common-tracing = { workspace = true }
-databend-common-version = { workspace = true }
+databend-common-version = { path = "../../common/version", default-features = false }
 databend-enterprise-attach-table = { workspace = true }
 databend-enterprise-data-mask-feature = { workspace = true }
 databend-enterprise-fail-safe = { workspace = true }
@@ -40,13 +91,13 @@ databend-enterprise-hilbert-clustering = { workspace = true }
 databend-enterprise-resources-management = { workspace = true }
 databend-enterprise-row-access-policy-feature = { workspace = true }
 databend-enterprise-storage-encryption = { workspace = true }
-databend-enterprise-stream-handler = { workspace = true }
+databend-enterprise-stream-handler = { workspace = true, optional = true }
 databend-enterprise-table-ref-handler = { workspace = true }
 databend-enterprise-vacuum-handler = { workspace = true }
-databend-enterprise-virtual-column = { workspace = true }
+databend-enterprise-virtual-column = { workspace = true, optional = true }
 databend-meta-client = { workspace = true }
 databend-meta-runtime = { workspace = true }
-databend-query = { workspace = true }
+databend-query = { path = "../service", default-features = false }
 databend-storages-common-cache = { workspace = true }
 databend-storages-common-io = { workspace = true }
 databend-storages-common-table-meta = { workspace = true }

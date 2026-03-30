@@ -23,7 +23,6 @@ use databend_common_sql::ApproxDistinctColumns;
 use databend_common_sql::BloomIndexColumns;
 use databend_common_sql::plans::DropTableColumnPlan;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
 use databend_storages_common_table_meta::table::OPT_KEY_APPROX_DISTINCT_COLUMNS;
 use databend_storages_common_table_meta::table::OPT_KEY_BLOOM_INDEX_COLUMNS;
 
@@ -34,6 +33,8 @@ use crate::interpreters::interpreter_table_add_column::commit_table_meta;
 use crate::pipelines::PipelineBuildResult;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
+
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct DropTableColumnInterpreter {
     ctx: Arc<QueryContext>,

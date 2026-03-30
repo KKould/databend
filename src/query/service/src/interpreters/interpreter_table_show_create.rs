@@ -32,12 +32,13 @@ use databend_common_sql::plans::ShowCreateTablePlan;
 use databend_common_storages_basic::view_table::QUERY;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
 use databend_common_storages_fuse::FUSE_OPT_KEY_ATTACH_COLUMN_IDS;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
+#[cfg(feature = "storage-stream")]
 use databend_common_storages_stream::stream_table::StreamTable;
 use databend_storages_common_table_meta::table::OPT_KEY_CLUSTER_TYPE;
 use databend_storages_common_table_meta::table::OPT_KEY_STORAGE_PREFIX;
 use databend_storages_common_table_meta::table::OPT_KEY_TABLE_ATTACHED_DATA_URI;
 use databend_storages_common_table_meta::table::OPT_KEY_TEMP_PREFIX;
+#[cfg(feature = "storage-stream")]
 use databend_storages_common_table_meta::table::StreamMode;
 use databend_storages_common_table_meta::table::is_internal_opt_key;
 use derive_visitor::DriveMut;
@@ -47,6 +48,8 @@ use crate::interpreters::Interpreter;
 use crate::pipelines::PipelineBuildResult;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
+
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct ShowCreateTableInterpreter {
     ctx: Arc<QueryContext>,
@@ -348,6 +351,7 @@ impl ShowCreateTableInterpreter {
         Ok(view_create_sql)
     }
 
+    #[cfg(feature = "storage-stream")]
     async fn show_create_stream_query(catalog: &dyn Catalog, table: &dyn Table) -> Result<String> {
         let stream_table = StreamTable::try_from_table(table)?;
         let source_database_name = stream_table.source_database_name(catalog).await?;
@@ -370,6 +374,16 @@ impl ShowCreateTableInterpreter {
             create_sql.push_str(format!(" COMMENT = {}", QuotedString(comment, '\'')).as_str());
         }
         Ok(create_sql)
+    }
+
+    #[cfg(not(feature = "storage-stream"))]
+    async fn show_create_stream_query(
+        _catalog: &dyn Catalog,
+        _table: &dyn Table,
+    ) -> Result<String> {
+        Err(ErrorCode::Unimplemented(
+            "STREAM support is disabled, rebuild with cargo feature 'storage-stream'",
+        ))
     }
 
     fn show_attach_table_query(table: &dyn Table, database: &str) -> String {

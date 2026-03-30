@@ -46,6 +46,7 @@ pub use http_client::StorageHttpClient;
 
 mod operator;
 pub use operator::DataOperator;
+#[cfg(feature = "storage-iceberg")]
 pub use operator::IcebergFileIO;
 pub use operator::OperatorRegistry;
 pub use operator::check_operator;

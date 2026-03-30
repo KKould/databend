@@ -360,17 +360,9 @@ opendal = { version = "0.54.1", features = [
     "layers-async-backtrace",
     "services-s3",
     "services-fs",
-    "services-gcs",
-    "services-cos",
-    "services-obs",
-    "services-oss",
-    "services-azblob",
-    "services-azdls",
-    "services-ipfs",
     "services-http",
     "services-moka",
-    "services-webhdfs",
-    "services-huggingface",
+    "services-memory",
 ] }
 openraft = { version = "0.10.0-alpha.14", features = [
     "serde",

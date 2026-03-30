@@ -31,7 +31,9 @@ mod interpreter_connection_create;
 mod interpreter_connection_desc;
 mod interpreter_connection_drop;
 mod interpreter_connection_show;
+#[cfg(feature = "storage-stage")]
 mod interpreter_copy_into_location;
+#[cfg(feature = "storage-stage")]
 mod interpreter_copy_into_table;
 mod interpreter_create_warehouses;
 mod interpreter_create_workload_group;
@@ -50,6 +52,7 @@ mod interpreter_dictionary_show_create;
 mod interpreter_drop_warehouse_cluster;
 mod interpreter_drop_warehouses;
 mod interpreter_drop_workload_group;
+#[cfg(feature = "sql-script")]
 mod interpreter_execute_immediate;
 mod interpreter_explain;
 mod interpreter_explain_perf;
@@ -59,6 +62,7 @@ mod interpreter_file_format_drop;
 mod interpreter_file_format_show;
 mod interpreter_index_create;
 mod interpreter_index_drop;
+#[cfg(feature = "fuse-management")]
 mod interpreter_index_refresh;
 mod interpreter_insert;
 mod interpreter_insert_multi_table;
@@ -71,9 +75,13 @@ mod interpreter_network_policy_alter;
 mod interpreter_network_policy_create;
 mod interpreter_network_policy_desc;
 mod interpreter_network_policy_drop;
+#[cfg(feature = "cloud-control")]
 mod interpreter_notification_alter;
+#[cfg(feature = "cloud-control")]
 mod interpreter_notification_create;
+#[cfg(feature = "cloud-control")]
 mod interpreter_notification_desc;
+#[cfg(feature = "cloud-control")]
 mod interpreter_notification_drop;
 mod interpreter_optimize_compact_block;
 mod interpreter_optimize_compact_segment;
@@ -85,6 +93,7 @@ mod interpreter_password_policy_drop;
 mod interpreter_presign;
 mod interpreter_privilege_grant;
 mod interpreter_privilege_revoke;
+#[cfg(feature = "sql-script")]
 mod interpreter_procedure_call;
 mod interpreter_procedure_create;
 mod interpreter_procedure_desc;
@@ -117,20 +126,27 @@ mod interpreter_set_workload_group_quotas;
 mod interpreter_show_online_nodes;
 mod interpreter_show_warehouses;
 mod interpreter_show_workload_groups;
+#[cfg(feature = "storage-stream")]
 mod interpreter_stream_create;
 mod interpreter_table_branch_create;
 mod interpreter_table_branch_drop;
+#[cfg(feature = "cloud-control")]
 mod interpreter_worker_alter;
+#[cfg(feature = "cloud-control")]
 mod interpreter_worker_create;
+#[cfg(feature = "cloud-control")]
 mod interpreter_worker_drop;
+#[cfg(feature = "cloud-control")]
 mod interpreter_worker_show;
 pub use hook::vacuum_hook::hook_clear_m_cte_temp_table;
 mod interpreter_object_tag;
+#[cfg(feature = "storage-stream")]
 mod interpreter_stream_drop;
 mod interpreter_suspend_warehouse;
 mod interpreter_system_action;
 mod interpreter_table_add_column;
 mod interpreter_table_add_constraint;
+#[cfg(feature = "fuse-management")]
 mod interpreter_table_analyze;
 mod interpreter_table_create;
 mod interpreter_table_describe;
@@ -140,10 +156,12 @@ mod interpreter_table_drop_constraint;
 mod interpreter_table_exists;
 mod interpreter_table_index_create;
 mod interpreter_table_index_drop;
+#[cfg(feature = "fuse-management")]
 mod interpreter_table_index_refresh;
 mod interpreter_table_modify_column;
 mod interpreter_table_modify_comment;
 mod interpreter_table_modify_connection;
+#[cfg(feature = "fuse-management")]
 mod interpreter_table_recluster;
 mod interpreter_table_rename;
 mod interpreter_table_rename_column;
@@ -159,6 +177,7 @@ mod interpreter_table_tag_drop;
 mod interpreter_table_truncate;
 mod interpreter_table_undrop;
 mod interpreter_table_unset_options;
+#[cfg(feature = "fuse-management")]
 mod interpreter_table_vacuum;
 mod interpreter_tag_create;
 mod interpreter_tag_drop;
@@ -193,7 +212,9 @@ mod interpreter_view_alter;
 mod interpreter_view_create;
 mod interpreter_view_describe;
 mod interpreter_view_drop;
+#[cfg(feature = "virtual-column")]
 mod interpreter_virtual_column_refresh;
+#[cfg(feature = "virtual-column")]
 mod interpreter_virtual_column_vacuum;
 mod task;
 mod util;
@@ -219,10 +240,12 @@ pub use interpreter_database_rename::RenameDatabaseInterpreter;
 pub use interpreter_database_show_create::ShowCreateDatabaseInterpreter;
 pub use interpreter_database_undrop::UndropDatabaseInterpreter;
 pub use interpreter_dictionary_rename::RenameDictionaryInterpreter;
+#[cfg(feature = "sql-script")]
 pub use interpreter_execute_immediate::ExecuteImmediateInterpreter;
 pub use interpreter_explain::ExplainInterpreter;
 pub use interpreter_explain_perf::ExplainPerfInterpreter;
 pub use interpreter_factory::InterpreterFactory;
+#[cfg(feature = "fuse-management")]
 pub use interpreter_index_refresh::RefreshIndexInterpreter;
 pub use interpreter_insert::InsertInterpreter;
 pub use interpreter_insert_multi_table::InsertMultiTableInterpreter;
@@ -260,10 +283,13 @@ pub use interpreter_sequence_create::CreateSequenceInterpreter;
 pub use interpreter_sequence_drop::DropSequenceInterpreter;
 pub use interpreter_set::SetInterpreter;
 pub use interpreter_set_priority::SetPriorityInterpreter;
+#[cfg(feature = "storage-stream")]
 pub use interpreter_stream_create::CreateStreamInterpreter;
+#[cfg(feature = "storage-stream")]
 pub use interpreter_stream_drop::DropStreamInterpreter;
 pub use interpreter_system_action::SystemActionInterpreter;
 pub use interpreter_table_add_column::AddTableColumnInterpreter;
+#[cfg(feature = "fuse-management")]
 pub use interpreter_table_analyze::AnalyzeTableInterpreter;
 pub use interpreter_table_create::CreateTableInterpreter;
 pub use interpreter_table_describe::DescribeTableInterpreter;
@@ -272,9 +298,11 @@ pub use interpreter_table_drop_column::DropTableColumnInterpreter;
 pub use interpreter_table_exists::ExistsTableInterpreter;
 pub use interpreter_table_index_create::CreateTableIndexInterpreter;
 pub use interpreter_table_index_drop::DropTableIndexInterpreter;
+#[cfg(feature = "fuse-management")]
 pub use interpreter_table_index_refresh::RefreshTableIndexInterpreter;
 pub use interpreter_table_modify_column::ModifyTableColumnInterpreter;
 pub use interpreter_table_modify_comment::ModifyTableCommentInterpreter;
+#[cfg(feature = "fuse-management")]
 pub use interpreter_table_recluster::ReclusterTableInterpreter;
 pub use interpreter_table_rename::RenameTableInterpreter;
 pub use interpreter_table_rename_column::RenameTableColumnInterpreter;
@@ -286,6 +314,7 @@ pub use interpreter_table_show_create::ShowCreateTableInterpreter;
 pub use interpreter_table_swap::SwapTableInterpreter;
 pub use interpreter_table_truncate::TruncateTableInterpreter;
 pub use interpreter_table_undrop::UndropTableInterpreter;
+#[cfg(feature = "fuse-management")]
 pub use interpreter_table_vacuum::VacuumTableInterpreter;
 pub use interpreter_tag_create::CreateTagInterpreter;
 pub use interpreter_tag_drop::DropTagInterpreter;
@@ -308,5 +337,7 @@ pub use interpreter_vacuum_temporary_files::VacuumTemporaryFilesInterpreter;
 pub use interpreter_view_alter::AlterViewInterpreter;
 pub use interpreter_view_create::CreateViewInterpreter;
 pub use interpreter_view_drop::DropViewInterpreter;
+#[cfg(feature = "virtual-column")]
 pub use interpreter_virtual_column_refresh::RefreshVirtualColumnInterpreter;
+#[cfg(feature = "virtual-column")]
 pub use interpreter_virtual_column_vacuum::VacuumVirtualColumnInterpreter;

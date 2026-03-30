@@ -95,10 +95,6 @@ impl AdminService {
                     get(super::v1::tenant_table_stats::get_tenant_tables_stats_handler),
                 )
                 .at(
-                    "v1/tenants/:tenant/stream_status",
-                    get(super::v1::stream_status::stream_status_handler),
-                )
-                .at(
                     "/v1/tenants/:tenant/settings",
                     get(super::v1::settings::list_settings),
                 )
@@ -127,6 +123,14 @@ impl AdminService {
                     "/v1/tenants/:tenant/databases/:database/tables/:table/stats",
                     get(super::v1::table_statistics::get_table_stats_handler),
                 );
+
+            #[cfg(feature = "storage-stream")]
+            {
+                route = route.at(
+                    "v1/tenants/:tenant/stream_status",
+                    get(super::v1::stream_status::stream_status_handler),
+                );
+            }
         }
 
         #[cfg(feature = "memory-profiling")]

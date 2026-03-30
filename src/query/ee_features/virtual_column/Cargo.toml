@@ -15,7 +15,7 @@ databend-common-base = { workspace = true }
 databend-common-catalog = { workspace = true }
 databend-common-exception = { workspace = true }
 databend-common-pipeline = { workspace = true }
-databend-common-sql = { workspace = true }
+databend-common-sql = { path = "../../sql", default-features = false }
 databend-common-storages-fuse = { workspace = true }
 databend-storages-common-table-meta = { workspace = true }
 

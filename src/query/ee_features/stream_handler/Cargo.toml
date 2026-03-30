@@ -13,7 +13,7 @@ databend-common-base = { workspace = true }
 databend-common-catalog = { workspace = true }
 databend-common-exception = { workspace = true }
 databend-common-meta-app = { workspace = true }
-databend-common-sql = { workspace = true }
+databend-common-sql = { path = "../../sql", default-features = false }
 
 [build-dependencies]
 

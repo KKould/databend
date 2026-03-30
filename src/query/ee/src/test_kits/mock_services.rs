@@ -23,7 +23,9 @@ use crate::data_mask::RealDatamaskHandler;
 use crate::license::RealLicenseManager;
 use crate::row_access_policy::row_access_policy_handler::RealRowAccessPolicyHandler;
 use crate::storages::fuse::operations::RealVacuumHandler;
+#[cfg(feature = "storage-stream")]
 use crate::stream::RealStreamHandler;
+#[cfg(feature = "virtual-column")]
 use crate::virtual_column::RealVirtualColumnHandler;
 
 pub struct MockServices;
@@ -35,7 +37,9 @@ impl MockServices {
         RealVacuumHandler::init()?;
         RealDatamaskHandler::init()?;
         RealRowAccessPolicyHandler::init()?;
+        #[cfg(feature = "virtual-column")]
         RealVirtualColumnHandler::init()?;
+        #[cfg(feature = "storage-stream")]
         RealStreamHandler::init()?;
         Ok(())
     }

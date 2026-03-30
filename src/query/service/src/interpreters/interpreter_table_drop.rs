@@ -24,7 +24,6 @@ use databend_common_sql::plans::DropTablePlan;
 use databend_common_sql::plans::TruncateMode;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
 use databend_common_storages_fuse::FuseTable;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
 use databend_common_users::RoleCacheManager;
 use databend_common_users::UserApiProvider;
 use databend_storages_common_table_meta::table::OPT_KEY_TEMP_PREFIX;
@@ -33,6 +32,8 @@ use crate::interpreters::Interpreter;
 use crate::pipelines::PipelineBuildResult;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
+
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct DropTableInterpreter {
     ctx: Arc<QueryContext>,

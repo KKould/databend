@@ -7,7 +7,22 @@ publish = { workspace = true }
 edition = { workspace = true }
 
 [features]
-storage-hdfs = ["databend-common-meta-app/storage-hdfs"]
+default = []
+storage-azblob = ["opendal/services-azblob"]
+storage-cos = ["opendal/services-cos"]
+storage-gcs = ["opendal/services-gcs"]
+storage-hdfs = ["databend-common-meta-app/storage-hdfs", "opendal/services-hdfs"]
+storage-huggingface = ["opendal/services-huggingface"]
+storage-iceberg = [
+    "dep:iceberg",
+    "opendal/services-azdls",
+    "opendal/services-gcs",
+    "opendal/services-oss",
+]
+storage-ipfs = ["opendal/services-ipfs"]
+storage-obs = ["opendal/services-obs"]
+storage-oss = ["opendal/services-oss"]
+storage-webhdfs = ["opendal/services-webhdfs"]
 
 [dependencies]
 
@@ -30,7 +45,7 @@ chrono = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
-iceberg = { workspace = true }
+iceberg = { workspace = true, optional = true }
 log = { workspace = true }
 lru = { workspace = true }
 opendal = { workspace = true }

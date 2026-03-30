@@ -11,7 +11,7 @@ databend-common-ast = { workspace = true }
 databend-common-catalog = { workspace = true }
 databend-common-meta-app = { workspace = true }
 databend-common-storages-basic = { workspace = true }
-databend-common-storages-system = { workspace = true }
+databend-common-storages-system = { path = "../system", default-features = false }
 
 [lints]
 workspace = true

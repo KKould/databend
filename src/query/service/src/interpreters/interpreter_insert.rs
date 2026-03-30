@@ -28,6 +28,7 @@ use databend_common_expression::types::UInt64Type;
 use databend_common_meta_app::schema::Constraint;
 use databend_common_pipeline::sources::AsyncSourcer;
 use databend_common_pipeline_transforms::TransformPipelineHelper;
+#[cfg(feature = "storage-stage")]
 use databend_common_pipeline_transforms::columns::TransformAddConstColumns;
 use databend_common_sql::NameResolutionContext;
 use databend_common_sql::binder::ConstraintExprBinder;
@@ -37,6 +38,7 @@ use databend_common_sql::plans::InsertInputSource;
 use databend_common_sql::plans::InsertValue;
 use databend_common_sql::plans::Plan;
 use databend_common_storages_fuse::operations::TransformConstraintVerify;
+#[cfg(feature = "storage-stage")]
 use databend_common_storages_stage::build_streaming_load_pipeline;
 use databend_storages_common_table_meta::meta::TableMetaTimestamps;
 use log::info;
@@ -284,26 +286,36 @@ impl Interpreter for InsertInterpreter {
                 return Ok(build_res);
             }
             InsertInputSource::StreamingLoad(plan) => {
-                build_streaming_load_pipeline(
-                    self.ctx.clone(),
-                    &mut build_res.main_pipeline,
-                    &plan.file_format,
-                    plan.receiver.clone(),
-                    plan.required_source_schema.clone(),
-                    plan.default_exprs.clone(),
-                    plan.block_thresholds,
-                )?;
-                if !plan.values_consts.is_empty() {
-                    let input_schema = Arc::new(DataSchema::from(&plan.required_source_schema));
-                    build_res.main_pipeline.try_add_transformer(|| {
-                        let ctx = self.ctx.get_function_context()?;
-                        TransformAddConstColumns::try_new(
-                            ctx,
-                            input_schema.clone(),
-                            plan.required_values_schema.clone(),
-                            plan.values_consts.clone(),
-                        )
-                    })?;
+                #[cfg(feature = "storage-stage")]
+                {
+                    build_streaming_load_pipeline(
+                        self.ctx.clone(),
+                        &mut build_res.main_pipeline,
+                        &plan.file_format,
+                        plan.receiver.clone(),
+                        plan.required_source_schema.clone(),
+                        plan.default_exprs.clone(),
+                        plan.block_thresholds,
+                    )?;
+                    if !plan.values_consts.is_empty() {
+                        let input_schema = Arc::new(DataSchema::from(&plan.required_source_schema));
+                        build_res.main_pipeline.try_add_transformer(|| {
+                            let ctx = self.ctx.get_function_context()?;
+                            TransformAddConstColumns::try_new(
+                                ctx,
+                                input_schema.clone(),
+                                plan.required_values_schema.clone(),
+                                plan.values_consts.clone(),
+                            )
+                        })?;
+                    }
+                }
+                #[cfg(not(feature = "storage-stage"))]
+                {
+                    let _ = plan;
+                    return Err(ErrorCode::Unimplemented(
+                        "Streaming load requires cargo feature 'storage-stage'",
+                    ));
                 }
             }
         };

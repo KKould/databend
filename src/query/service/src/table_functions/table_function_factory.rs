@@ -19,22 +19,37 @@ use databend_common_catalog::table_args::TableArgs;
 use databend_common_config::InnerConfig;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::ClusteringStatisticsFunc;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseAmendTable;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseBlockFunc;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseColumnFunc;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseDumpSnapshotsFunc;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseEncodingFunc;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FusePageFunc;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseStatisticsFunc;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseTimeTravelSizeFunc;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseVacuumDropAggregatingIndex;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseVacuumDropInvertedIndex;
+#[cfg(feature = "fuse-management")]
 use databend_common_storages_fuse::table_functions::FuseVacuumTemporaryTable;
+#[cfg(feature = "virtual-column")]
 use databend_common_storages_fuse::table_functions::FuseVirtualColumnFunc;
 use databend_common_storages_fuse::table_functions::SetCacheCapacity;
 use databend_common_storages_fuse::table_functions::TableFunctionTemplate;
+#[cfg(feature = "storage-iceberg")]
 use databend_common_storages_iceberg::IcebergInspectTable;
+#[cfg(feature = "storage-stream")]
 use databend_common_storages_stream::stream_status_table_func::StreamStatusTable;
 use databend_meta_client::types::MetaId;
 use databend_storages_common_table_meta::table_id_ranges::SYS_TBL_FUC_ID_END;
@@ -45,16 +60,24 @@ use parking_lot::RwLock;
 use super::LicenseInfoTable;
 use super::TenantQuotaTable;
 use super::others::UdfEchoTable;
+#[cfg(feature = "fuse-management")]
 use crate::storages::fuse::table_functions::ClusteringInformationFunc;
+#[cfg(feature = "fuse-management")]
 use crate::storages::fuse::table_functions::FuseSegmentFunc;
+#[cfg(feature = "fuse-management")]
 use crate::storages::fuse::table_functions::FuseSnapshotFunc;
 use crate::table_functions::TableFunction;
 use crate::table_functions::async_crash_me::AsyncCrashMeTable;
+#[cfg(feature = "cloud-control")]
 use crate::table_functions::cloud::TaskDependentsEnableTable;
+#[cfg(feature = "cloud-control")]
 use crate::table_functions::cloud::TaskDependentsTable;
+#[cfg(feature = "cloud-control")]
 use crate::table_functions::cloud::TaskHistoryTable;
 use crate::table_functions::copy_history::CopyHistoryTable;
+#[cfg(feature = "fuse-management")]
 use crate::table_functions::fuse_vacuum2::FuseVacuum2Table;
+#[cfg(feature = "storage-stage")]
 use crate::table_functions::infer_schema::InferSchemaTable;
 use crate::table_functions::inspect_parquet::InspectParquetTable;
 use crate::table_functions::list_stage::ListStageTable;
@@ -103,6 +126,9 @@ pub struct TableFunctionFactory {
 
 impl TableFunctionFactory {
     pub fn create(config: &InnerConfig) -> Self {
+        #[cfg(not(feature = "cloud-control"))]
+        let _ = config;
+
         let mut id = SYS_TBL_FUNC_ID_BEGIN;
         let mut next_id = || -> MetaId {
             if id >= SYS_TBL_FUC_ID_END {
@@ -133,6 +159,7 @@ impl TableFunctionFactory {
             (next_id(), number_table_func_creator),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_snapshot".to_string(),
             (
@@ -141,6 +168,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_dump_snapshots".to_string(),
             (
@@ -149,6 +177,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_amend".to_string(),
             (
@@ -165,6 +194,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_segment".to_string(),
             (
@@ -173,6 +203,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_vacuum2".to_string(),
             (
@@ -181,6 +212,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_block".to_string(),
             (
@@ -189,6 +221,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_page".to_string(),
             (
@@ -197,6 +230,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_column".to_string(),
             (
@@ -205,6 +239,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "virtual-column")]
         creators.insert(
             "fuse_virtual_column".to_string(),
             (
@@ -213,6 +248,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_statistic".to_string(),
             (
@@ -221,6 +257,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "clustering_information".to_string(),
             (
@@ -229,6 +266,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "clustering_statistics".to_string(),
             (
@@ -237,6 +275,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_vacuum_temporary_table".to_string(),
             (
@@ -245,6 +284,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "storage-stream")]
         creators.insert(
             "stream_status".to_string(),
             (next_id(), Arc::new(StreamStatusTable::create)),
@@ -260,6 +300,7 @@ impl TableFunctionFactory {
             (next_id(), Arc::new(AsyncCrashMeTable::create)),
         );
 
+        #[cfg(feature = "storage-stage")]
         creators.insert(
             "infer_schema".to_string(),
             (next_id(), Arc::new(InferSchemaTable::create)),
@@ -294,6 +335,7 @@ impl TableFunctionFactory {
             (next_id(), Arc::new(TenantQuotaTable::create)),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_encoding".to_string(),
             (
@@ -302,6 +344,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "cloud-control")]
         if !config.task.on {
             creators.insert(
                 "task_dependents".to_string(),
@@ -344,6 +387,7 @@ impl TableFunctionFactory {
             (next_id(), Arc::new(UdfEchoTable::create)),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_time_travel_size".to_string(),
             (
@@ -352,6 +396,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_vacuum_drop_aggregating_index".to_string(),
             (
@@ -360,6 +405,7 @@ impl TableFunctionFactory {
             ),
         );
 
+        #[cfg(feature = "fuse-management")]
         creators.insert(
             "fuse_vacuum_drop_inverted_index".to_string(),
             (
@@ -379,11 +425,13 @@ impl TableFunctionFactory {
                 Arc::new(TableFunctionTemplate::<TableStatisticsFunc>::create),
             ),
         );
+        #[cfg(feature = "storage-iceberg")]
         creators.insert(
             "iceberg_snapshot".to_string(),
             (next_id(), Arc::new(IcebergInspectTable::create)),
         );
 
+        #[cfg(feature = "storage-iceberg")]
         creators.insert(
             "iceberg_manifest".to_string(),
             (next_id(), Arc::new(IcebergInspectTable::create)),

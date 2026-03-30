@@ -19,13 +19,14 @@ use databend_common_exception::Result;
 use databend_common_meta_app::schema::DropTableByIdReq;
 use databend_common_sql::plans::DropViewPlan;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
 use databend_storages_common_table_meta::table::OPT_KEY_TEMP_PREFIX;
 
 use crate::interpreters::Interpreter;
 use crate::pipelines::PipelineBuildResult;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
+
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct DropViewInterpreter {
     ctx: Arc<QueryContext>,

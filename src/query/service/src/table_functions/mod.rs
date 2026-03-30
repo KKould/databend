@@ -13,9 +13,12 @@
 // limitations under the License.
 
 mod async_crash_me;
+#[cfg(feature = "cloud-control")]
 mod cloud;
 mod copy_history;
+#[cfg(feature = "fuse-management")]
 mod fuse_vacuum2;
+#[cfg(feature = "storage-stage")]
 mod infer_schema;
 mod inspect_parquet;
 mod list_stage;

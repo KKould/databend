@@ -6,6 +6,10 @@ license = { workspace = true }
 publish = { workspace = true }
 edition = { workspace = true }
 
+[features]
+default = ["full-build-info"]
+full-build-info = ["dep:databend-common-building"]
+
 [dependencies]
 databend-common-base = { workspace = true }
 semver = { workspace = true }
@@ -14,7 +18,7 @@ semver = { workspace = true }
 regex = { workspace = true }
 
 [build-dependencies]
-databend-common-building = { workspace = true }
+databend-common-building = { workspace = true, optional = true }
 
 [lints]
 workspace = true

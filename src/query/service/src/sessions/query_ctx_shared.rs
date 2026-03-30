@@ -65,6 +65,7 @@ use databend_common_storage::DataOperator;
 use databend_common_storage::MultiTableInsertStatus;
 use databend_common_storage::MutationStatus;
 use databend_common_storage::StorageMetrics;
+#[cfg(feature = "storage-stream")]
 use databend_common_storages_stream::stream_table::StreamTable;
 use databend_common_users::UserApiProvider;
 use databend_storages_common_table_meta::meta::Location;
@@ -570,61 +571,72 @@ impl QueryContextShared {
             return Ok(table);
         }
 
-        let stream = StreamTable::try_from_table(table.as_ref())?;
-        let source_database_name = stream.source_database_name(catalog.as_ref()).await?;
-        let source_table_name = stream.source_table_name(catalog.as_ref()).await?;
-        let meta_key = (
-            catalog.name(),
-            source_database_name.to_string(),
-            source_table_name.to_string(),
-        );
-        let already_in_cache = { self.tables_refs.lock().contains_key(&meta_key) };
-        let source_table = match already_in_cache {
-            false => {
-                let stream_desc = &stream.get_table_info().desc;
-                let source_table =
-                    match catalog.get_stream_source_table(stream_desc, max_batch_size)? {
-                        Some(source_table) => source_table,
-                        None => {
-                            let source_table = stream
-                                .navigate_within_batch_limit(
-                                    catalog.as_ref(),
-                                    &self.get_tenant(),
-                                    &source_database_name,
-                                    &source_table_name,
+        #[cfg(not(feature = "storage-stream"))]
+        {
+            let _ = (catalog, max_batch_size);
+            return Err(ErrorCode::Unimplemented(
+                "STREAM support is disabled, rebuild with cargo feature 'storage-stream'",
+            ));
+        }
+
+        #[cfg(feature = "storage-stream")]
+        {
+            let stream = StreamTable::try_from_table(table.as_ref())?;
+            let source_database_name = stream.source_database_name(catalog.as_ref()).await?;
+            let source_table_name = stream.source_table_name(catalog.as_ref()).await?;
+            let meta_key = (
+                catalog.name(),
+                source_database_name.to_string(),
+                source_table_name.to_string(),
+            );
+            let already_in_cache = { self.tables_refs.lock().contains_key(&meta_key) };
+            let source_table = match already_in_cache {
+                false => {
+                    let stream_desc = &stream.get_table_info().desc;
+                    let source_table =
+                        match catalog.get_stream_source_table(stream_desc, max_batch_size)? {
+                            Some(source_table) => source_table,
+                            None => {
+                                let source_table = stream
+                                    .navigate_within_batch_limit(
+                                        catalog.as_ref(),
+                                        &self.get_tenant(),
+                                        &source_database_name,
+                                        &source_table_name,
+                                        max_batch_size,
+                                        self.get_settings().get_s3_storage_class()?,
+                                    )
+                                    .await?;
+                                catalog.cache_stream_source_table(
+                                    stream.get_table_info().clone(),
+                                    source_table.get_table_info().clone(),
                                     max_batch_size,
-                                    self.get_settings().get_s3_storage_class()?,
-                                )
-                                .await?;
-                            catalog.cache_stream_source_table(
-                                stream.get_table_info().clone(),
-                                source_table.get_table_info().clone(),
-                                max_batch_size,
-                            );
-                            source_table
-                        }
-                    };
+                                );
+                                source_table
+                            }
+                        };
 
-                let mut tables_refs = self.tables_refs.lock();
-                tables_refs.entry(meta_key).or_insert(source_table.clone());
-                source_table
-            }
-            true => self
-                .tables_refs
-                .lock()
-                .get(&meta_key)
-                .ok_or_else(|| ErrorCode::Internal("Logical error, it's a bug."))?
-                .clone(),
-        };
+                    let mut tables_refs = self.tables_refs.lock();
+                    tables_refs.entry(meta_key).or_insert(source_table.clone());
+                    source_table
+                }
+                true => self
+                    .tables_refs
+                    .lock()
+                    .get(&meta_key)
+                    .ok_or_else(|| ErrorCode::Internal("Logical error, it's a bug."))?
+                    .clone(),
+            };
 
-        let mut stream_info = stream.get_table_info().to_owned();
-        stream_info.meta.schema = source_table.schema();
+            let mut stream_info = stream.get_table_info().to_owned();
+            stream_info.meta.schema = source_table.schema();
 
-        Ok(StreamTable::create(
-            stream_info,
-            max_batch_size,
-            Some(source_table),
-        ))
+            Ok(StreamTable::create(
+                stream_info,
+                max_batch_size,
+                Some(source_table),
+            ))
+        }
     }
 
     pub fn evict_table_from_cache(&self, catalog: &str, database: &str, table: &str) -> Result<()> {

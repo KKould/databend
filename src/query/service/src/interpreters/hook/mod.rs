@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "fuse-management")]
 pub(crate) mod analyze_hook;
+#[cfg(feature = "fuse-management")]
 pub(crate) mod compact_hook;
+#[cfg(feature = "fuse-management")]
 pub(crate) mod refresh_hook;
 pub(crate) mod vacuum_hook;
 

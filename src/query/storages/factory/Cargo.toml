@@ -6,16 +6,22 @@ authors = ["Databend Authors <opensource@datafuselabs.com>"]
 license = "Apache-2.0"
 publish = false
 
+[features]
+default = ["storage-stream", "storage-delta", "storage-iceberg"]
+storage-stream = ["dep:databend-common-storages-stream"]
+storage-delta = ["dep:databend-common-storages-delta"]
+storage-iceberg = ["dep:databend-common-storages-iceberg"]
+
 [dependencies]
 databend-common-catalog = { workspace = true }
 databend-common-config = { workspace = true }
 databend-common-exception = { workspace = true }
 databend-common-meta-app = { workspace = true }
 databend-common-storages-basic = { workspace = true }
-databend-common-storages-delta = { workspace = true }
+databend-common-storages-delta = { workspace = true, optional = true }
 databend-common-storages-fuse = { workspace = true }
-databend-common-storages-iceberg = { workspace = true }
-databend-common-storages-stream = { workspace = true }
+databend-common-storages-iceberg = { workspace = true, optional = true }
+databend-common-storages-stream = { workspace = true, optional = true }
 databend-storages-common-index = { workspace = true }
 
 [lints]

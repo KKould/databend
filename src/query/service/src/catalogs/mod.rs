@@ -13,12 +13,15 @@
 // limitations under the License.
 
 pub mod default;
+#[cfg(feature = "storage-iceberg")]
 mod iceberg;
 
 pub use databend_common_catalog::catalog::Catalog;
+#[cfg(feature = "storage-hive")]
 pub use databend_common_storages_hive as hive;
 pub use default::DatabaseCatalog;
 pub use default::table_memory_meta::InMemoryMetas;
+#[cfg(feature = "storage-iceberg")]
 pub use iceberg::IcebergCreator;
 
 /// Merges two iterators of Option<T>, preferring left (primary) values over right (fallback) values.

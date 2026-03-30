@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod get_database_table;
+#[cfg(feature = "storage-stream")]
 pub mod list_database_streams;
 pub mod list_database_table_fields;
 pub mod list_database_tables;
@@ -22,6 +23,7 @@ pub mod search_tables;
 pub mod stats;
 
 pub use get_database_table::get_database_table_handler;
+#[cfg(feature = "storage-stream")]
 pub use list_database_streams::list_database_streams_handler;
 pub use list_database_table_fields::list_database_table_fields_handler;
 pub use list_database_tables::list_database_tables_handler;

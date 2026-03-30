@@ -26,21 +26,29 @@ use databend_common_base::runtime::metrics::FamilyCounter;
 use databend_common_base::runtime::metrics::register_counter_family;
 use databend_common_exception::ErrorCode;
 use databend_common_meta_app::storage::S3StorageClass;
+#[cfg(feature = "storage-azblob")]
 use databend_common_meta_app::storage::StorageAzblobConfig;
+#[cfg(feature = "storage-cos")]
 use databend_common_meta_app::storage::StorageCosConfig;
 use databend_common_meta_app::storage::StorageFsConfig;
+#[cfg(feature = "storage-gcs")]
 use databend_common_meta_app::storage::StorageGcsConfig;
 #[cfg(feature = "storage-hdfs")]
 use databend_common_meta_app::storage::StorageHdfsConfig;
 use databend_common_meta_app::storage::StorageHttpConfig;
+#[cfg(feature = "storage-huggingface")]
 use databend_common_meta_app::storage::StorageHuggingfaceConfig;
+#[cfg(feature = "storage-ipfs")]
 use databend_common_meta_app::storage::StorageIpfsConfig;
 use databend_common_meta_app::storage::StorageMokaConfig;
 use databend_common_meta_app::storage::StorageNetworkParams;
+#[cfg(feature = "storage-obs")]
 use databend_common_meta_app::storage::StorageObsConfig;
+#[cfg(feature = "storage-oss")]
 use databend_common_meta_app::storage::StorageOssConfig;
 use databend_common_meta_app::storage::StorageParams;
 use databend_common_meta_app::storage::StorageS3Config;
+#[cfg(feature = "storage-webhdfs")]
 use databend_common_meta_app::storage::StorageWebhdfsConfig;
 use databend_common_meta_app::storage::set_s3_storage_class;
 use databend_enterprise_storage_encryption::get_storage_encryption_handler;
@@ -82,10 +90,12 @@ pub fn init_operator(cfg: &StorageParams) -> Result<Operator> {
 /// This function creates a new operator every time it's called.
 pub(crate) fn init_operator_uncached(cfg: &StorageParams) -> Result<Operator> {
     let op = match &cfg {
+        #[cfg(feature = "storage-azblob")]
         StorageParams::Azblob(cfg) => {
             build_operator(init_azblob_operator(cfg)?, cfg.network_config.as_ref())?
         }
         StorageParams::Fs(cfg) => build_operator(init_fs_operator(cfg)?, None)?,
+        #[cfg(feature = "storage-gcs")]
         StorageParams::Gcs(cfg) => {
             build_operator(init_gcs_operator(cfg)?, cfg.network_config.as_ref())?
         }
@@ -97,26 +107,32 @@ pub(crate) fn init_operator_uncached(cfg: &StorageParams) -> Result<Operator> {
             let (builder, layer) = init_http_operator(cfg)?;
             build_operator(builder, cfg.network_config.as_ref())?.layer(layer)
         }
+        #[cfg(feature = "storage-ipfs")]
         StorageParams::Ipfs(cfg) => {
             build_operator(init_ipfs_operator(cfg)?, cfg.network_config.as_ref())?
         }
         StorageParams::Memory => build_operator(init_memory_operator()?, None)?,
         StorageParams::Moka(cfg) => build_operator(init_moka_operator(cfg)?, None)?,
+        #[cfg(feature = "storage-obs")]
         StorageParams::Obs(cfg) => {
             build_operator(init_obs_operator(cfg)?, cfg.network_config.as_ref())?
         }
         StorageParams::S3(cfg) => {
             build_operator(init_s3_operator(cfg)?, cfg.network_config.as_ref())?
         }
+        #[cfg(feature = "storage-oss")]
         StorageParams::Oss(cfg) => {
             build_operator(init_oss_operator(cfg)?, cfg.network_config.as_ref())?
         }
+        #[cfg(feature = "storage-webhdfs")]
         StorageParams::Webhdfs(cfg) => {
             build_operator(init_webhdfs_operator(cfg)?, cfg.network_config.as_ref())?
         }
+        #[cfg(feature = "storage-cos")]
         StorageParams::Cos(cfg) => {
             build_operator(init_cos_operator(cfg)?, cfg.network_config.as_ref())?
         }
+        #[cfg(feature = "storage-huggingface")]
         StorageParams::Huggingface(cfg) => {
             build_operator(init_huggingface_operator(cfg)?, cfg.network_config.as_ref())?
         }
@@ -284,6 +300,7 @@ fn get_http_client(cfg: Option<&StorageNetworkParams>) -> StorageHttpClient {
 }
 
 /// init_azblob_operator will init an opendal azblob operator.
+#[cfg(feature = "storage-azblob")]
 pub fn init_azblob_operator(cfg: &StorageAzblobConfig) -> Result<impl Builder> {
     let builder = services::Azblob::default()
         // Endpoint
@@ -313,6 +330,7 @@ fn init_fs_operator(cfg: &StorageFsConfig) -> Result<impl Builder> {
 }
 
 /// init_gcs_operator will init a opendal gcs operator.
+#[cfg(feature = "storage-gcs")]
 fn init_gcs_operator(cfg: &StorageGcsConfig) -> Result<impl Builder> {
     let builder = services::Gcs::default()
         .endpoint(&cfg.endpoint_url)
@@ -335,6 +353,7 @@ fn init_hdfs_operator(cfg: &StorageHdfsConfig) -> Result<impl Builder> {
     Ok(builder)
 }
 
+#[cfg(feature = "storage-ipfs")]
 fn init_ipfs_operator(cfg: &StorageIpfsConfig) -> Result<impl Builder> {
     let builder = services::Ipfs::default()
         .root(&cfg.root)
@@ -455,6 +474,7 @@ fn init_s3_operator(cfg: &StorageS3Config) -> Result<impl Builder> {
 }
 
 /// init_obs_operator will init a opendal obs operator with input obs config.
+#[cfg(feature = "storage-obs")]
 fn init_obs_operator(cfg: &StorageObsConfig) -> Result<impl Builder> {
     let builder = services::Obs::default()
         // Endpoint
@@ -471,6 +491,7 @@ fn init_obs_operator(cfg: &StorageObsConfig) -> Result<impl Builder> {
 }
 
 /// init_oss_operator will init an opendal OSS operator with input oss config.
+#[cfg(feature = "storage-oss")]
 fn init_oss_operator(cfg: &StorageOssConfig) -> Result<impl Builder> {
     let builder = services::Oss::default()
         .endpoint(&cfg.endpoint_url)
@@ -496,6 +517,7 @@ fn init_moka_operator(v: &StorageMokaConfig) -> Result<impl Builder> {
 }
 
 /// init_webhdfs_operator will init a WebHDFS operator
+#[cfg(feature = "storage-webhdfs")]
 fn init_webhdfs_operator(v: &StorageWebhdfsConfig) -> Result<impl Builder> {
     let mut builder = services::Webhdfs::default()
         .endpoint(&v.endpoint_url)
@@ -511,6 +533,7 @@ fn init_webhdfs_operator(v: &StorageWebhdfsConfig) -> Result<impl Builder> {
 }
 
 /// init_cos_operator will init an opendal COS operator with input oss config.
+#[cfg(feature = "storage-cos")]
 fn init_cos_operator(cfg: &StorageCosConfig) -> Result<impl Builder> {
     let builder = services::Cos::default()
         .endpoint(&cfg.endpoint_url)
@@ -523,6 +546,7 @@ fn init_cos_operator(cfg: &StorageCosConfig) -> Result<impl Builder> {
 }
 
 /// init_huggingface_operator will init an opendal operator with input config.
+#[cfg(feature = "storage-huggingface")]
 fn init_huggingface_operator(cfg: &StorageHuggingfaceConfig) -> Result<impl Builder> {
     let builder = services::Huggingface::default()
         .repo_type(&cfg.repo_type)
@@ -675,11 +699,13 @@ impl OperatorRegistry for DataOperator {
     }
 }
 
+#[cfg(feature = "storage-iceberg")]
 pub struct IcebergFileIO {
     scheme: String,
     props: std::collections::HashMap<String, String>,
 }
 
+#[cfg(feature = "storage-iceberg")]
 impl IcebergFileIO {
     pub fn new(file_io: iceberg::io::FileIO) -> Self {
         let (scheme, props, _extensions) = file_io.into_builder().into_parts();
@@ -784,6 +810,7 @@ impl IcebergFileIO {
     }
 }
 
+#[cfg(feature = "storage-iceberg")]
 impl OperatorRegistry for IcebergFileIO {
     fn get_operator_path<'a>(&self, location: &'a str) -> Result<(Operator, &'a str)> {
         let (op, pos) = self.build_operator(location)?;

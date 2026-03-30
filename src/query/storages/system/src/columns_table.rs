@@ -37,7 +37,7 @@ use databend_common_meta_app::tenant::Tenant;
 use databend_common_sql::Planner;
 use databend_common_storages_basic::view_table::QUERY;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
+#[cfg(feature = "storage-stream")]
 use databend_common_storages_stream::stream_table::StreamTable;
 use log::warn;
 
@@ -47,6 +47,8 @@ use crate::table::AsyncSystemTable;
 use crate::util::collect_visible_tables;
 use crate::util::disable_catalog_refresh;
 use crate::util::extract_leveled_strings;
+
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct ColumnsTable {
     table_info: TableInfo,
@@ -214,25 +216,35 @@ impl ColumnsTable {
                         }
                     }
                     STREAM_ENGINE => {
-                        let stream = StreamTable::try_from_table(table.as_ref())?;
-                        match stream.source_table(ctx.clone()).await {
-                            Ok(source_table) => {
-                                for field in source_table.schema().fields() {
-                                    rows.push(TableColumnInfo {
-                                        database_name: database.clone(),
-                                        table_name: table.name().into(),
-                                        column: field.clone(),
-                                        column_comment: "".to_string(),
-                                    })
+                        #[cfg(feature = "storage-stream")]
+                        {
+                            let stream = StreamTable::try_from_table(table.as_ref())?;
+                            match stream.source_table(ctx.clone()).await {
+                                Ok(source_table) => {
+                                    for field in source_table.schema().fields() {
+                                        rows.push(TableColumnInfo {
+                                            database_name: database.clone(),
+                                            table_name: table.name().into(),
+                                            column: field.clone(),
+                                            column_comment: "".to_string(),
+                                        })
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!(
+                                        "failed to get columns for {}: {}",
+                                        table.get_table_info().desc,
+                                        e
+                                    );
                                 }
                             }
-                            Err(e) => {
-                                warn!(
-                                    "failed to get columns for {}: {}",
-                                    table.get_table_info().desc,
-                                    e
-                                );
-                            }
+                        }
+                        #[cfg(not(feature = "storage-stream"))]
+                        {
+                            warn!(
+                                "skip stream columns for {} because storage-stream feature is disabled",
+                                table.get_table_info().desc
+                            );
                         }
                     }
                     _ => {

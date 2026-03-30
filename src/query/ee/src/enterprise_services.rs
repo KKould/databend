@@ -26,8 +26,10 @@ use crate::resource_management::init_resources_management;
 use crate::row_access_policy::row_access_policy_handler::RealRowAccessPolicyHandler;
 use crate::storage_encryption::RealStorageEncryptionHandler;
 use crate::storages::fuse::operations::RealVacuumHandler;
+#[cfg(feature = "storage-stream")]
 use crate::stream::RealStreamHandler;
 use crate::table_ref::RealTableRefHandler;
+#[cfg(feature = "virtual-column")]
 use crate::virtual_column::RealVirtualColumnHandler;
 
 pub struct EnterpriseServices;
@@ -39,7 +41,9 @@ impl EnterpriseServices {
         RealVacuumHandler::init()?;
         RealDatamaskHandler::init()?;
         RealRowAccessPolicyHandler::init()?;
+        #[cfg(feature = "virtual-column")]
         RealVirtualColumnHandler::init()?;
+        #[cfg(feature = "storage-stream")]
         RealStreamHandler::init()?;
         RealTableRefHandler::init()?;
         RealAttachTableHandler::init()?;

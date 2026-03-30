@@ -19,6 +19,7 @@ mod query;
 pub mod roles;
 mod session;
 mod stage;
+#[cfg(feature = "storage-stage")]
 mod streaming_load;
 pub mod users;
 mod verify;
@@ -51,7 +52,9 @@ pub use session::refresh_handler::refresh_handler;
 pub(crate) use session::unix_ts;
 pub use stage::UploadToStageResponse;
 pub use stage::upload_to_stage;
+#[cfg(feature = "storage-stage")]
 pub use streaming_load::LoadResponse;
+#[cfg(feature = "storage-stage")]
 pub use streaming_load::streaming_load_handler;
 pub use users::create_user_handler;
 pub use users::list_users_handler;

@@ -25,7 +25,6 @@ use databend_common_meta_app::schema::SetTableRowAccessPolicyReq;
 use databend_common_sql::plans::AddTableRowAccessPolicyPlan;
 use databend_common_sql::resolve_type_name_by_str;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
 use databend_common_users::UserApiProvider;
 use databend_enterprise_row_access_policy_feature::get_row_access_policy_handler;
 
@@ -33,6 +32,8 @@ use crate::interpreters::Interpreter;
 use crate::pipelines::PipelineBuildResult;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
+
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct AddTableRowAccessPolicyInterpreter {
     ctx: Arc<QueryContext>,

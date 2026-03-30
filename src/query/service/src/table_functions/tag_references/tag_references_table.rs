@@ -62,7 +62,6 @@ use databend_common_pipeline::sources::AsyncSourcer;
 use databend_common_sql::planner::NameResolutionContext;
 use databend_common_sql::planner::normalize_identifier;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
 use databend_common_users::Object;
 use databend_common_users::UserApiProvider;
 
@@ -70,6 +69,7 @@ use crate::meta_service_error;
 
 const TAG_REFERENCES_FUNC: &str = "tag_references";
 const TAG_REFERENCES_ENGINE: &str = "TAG_REFERENCES";
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct TagReferencesTable {
     table_info: TableInfo,

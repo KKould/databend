@@ -22,6 +22,7 @@ use databend_common_base::runtime::GlobalIORuntime;
 use databend_common_base::runtime::GlobalQueryRuntime;
 use databend_common_catalog::catalog::CatalogCreator;
 use databend_common_catalog::catalog::CatalogManager;
+#[cfg(feature = "cloud-control")]
 use databend_common_cloud_control::cloud_api::CloudControlApiProvider;
 use databend_common_config::GlobalConfig;
 use databend_common_config::InnerConfig;
@@ -35,6 +36,7 @@ use databend_common_meta_app::schema::CatalogType;
 use databend_common_meta_store::MetaStoreProvider;
 use databend_common_storage::DataOperator;
 use databend_common_storage::ShareTableConfig;
+#[cfg(feature = "storage-hive")]
 use databend_common_storages_hive::HiveCreator;
 use databend_common_tracing::GlobalLogger;
 use databend_common_users::RoleCacheManager;
@@ -49,6 +51,7 @@ use crate::auth::AuthMgr;
 use crate::builtin::BuiltinUDFs;
 use crate::builtin::BuiltinUsers;
 use crate::catalogs::DatabaseCatalog;
+#[cfg(feature = "storage-iceberg")]
 use crate::catalogs::IcebergCreator;
 use crate::clusters::ClusterDiscovery;
 use crate::history_tables::GlobalHistoryLog;
@@ -125,10 +128,12 @@ impl GlobalServices {
             let default_catalog =
                 DatabaseCatalog::try_create_with_config(config.clone(), version).await?;
 
-            let catalog_creator: Vec<(CatalogType, Arc<dyn CatalogCreator>)> = vec![
-                (CatalogType::Iceberg, Arc::new(IcebergCreator)),
-                (CatalogType::Hive, Arc::new(HiveCreator)),
-            ];
+            #[allow(unused_mut)]
+            let mut catalog_creator: Vec<(CatalogType, Arc<dyn CatalogCreator>)> = Vec::new();
+            #[cfg(feature = "storage-iceberg")]
+            catalog_creator.push((CatalogType::Iceberg, Arc::new(IcebergCreator)));
+            #[cfg(feature = "storage-hive")]
+            catalog_creator.push((CatalogType::Hive, Arc::new(HiveCreator)));
 
             CatalogManager::init(config, Arc::new(default_catalog), catalog_creator, version)
                 .await?;
@@ -178,6 +183,7 @@ impl GlobalServices {
         )?;
         TempDirManager::init(&config.spill, config.query.tenant_id.tenant_name())?;
 
+        #[cfg(feature = "cloud-control")]
         if let Some(addr) = config
             .query
             .common
@@ -186,6 +192,17 @@ impl GlobalServices {
         {
             CloudControlApiProvider::init(addr, config.query.common.cloud_control_grpc_timeout)
                 .await?;
+        }
+        #[cfg(not(feature = "cloud-control"))]
+        if config
+            .query
+            .common
+            .cloud_control_grpc_server_address
+            .is_some()
+        {
+            return Err(ErrorCode::Unimplemented(
+                "cloud control support is disabled, rebuild with cargo feature 'cloud-control'",
+            ));
         }
 
         if !ee_mode {

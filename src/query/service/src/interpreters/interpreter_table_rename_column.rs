@@ -21,8 +21,8 @@ use databend_common_expression::DataSchema;
 use databend_common_meta_app::schema::DatabaseType;
 use databend_common_sql::plans::RenameTableColumnPlan;
 use databend_common_storages_basic::view_table::VIEW_ENGINE;
+#[cfg(feature = "storage-iceberg")]
 use databend_common_storages_iceberg::table::ICEBERG_ENGINE;
-use databend_common_storages_stream::stream_table::STREAM_ENGINE;
 use databend_storages_common_table_meta::table::OPT_KEY_APPROX_DISTINCT_COLUMNS;
 use databend_storages_common_table_meta::table::OPT_KEY_BLOOM_INDEX_COLUMNS;
 
@@ -35,6 +35,8 @@ use crate::interpreters::interpreter_table_create::is_valid_column;
 use crate::pipelines::PipelineBuildResult;
 use crate::sessions::QueryContext;
 use crate::sessions::TableContext;
+
+const STREAM_ENGINE: &str = "STREAM";
 
 pub struct RenameTableColumnInterpreter {
     ctx: Arc<QueryContext>,
@@ -78,10 +80,18 @@ impl Interpreter for RenameTableColumnInterpreter {
 
         let table_info = table.get_table_info();
         let engine = table.engine();
-        if matches!(
-            engine.to_uppercase().as_str(),
-            VIEW_ENGINE | STREAM_ENGINE | ICEBERG_ENGINE
-        ) {
+        let is_engine_blocked =
+            matches!(engine.to_uppercase().as_str(), VIEW_ENGINE | STREAM_ENGINE) || {
+                #[cfg(feature = "storage-iceberg")]
+                {
+                    matches!(engine.to_uppercase().as_str(), ICEBERG_ENGINE)
+                }
+                #[cfg(not(feature = "storage-iceberg"))]
+                {
+                    false
+                }
+            };
+        if is_engine_blocked {
             return Err(ErrorCode::TableEngineNotSupported(format!(
                 "{}.{} engine is {} that doesn't support rename column name",
                 &self.plan.database, &self.plan.table, engine

@@ -7,6 +7,10 @@ publish = { workspace = true }
 edition = { workspace = true }
 
 [features]
+default = ["cloud-control", "storage-stream", "virtual-column"]
+cloud-control = ["dep:databend-common-cloud-control"]
+storage-stream = ["dep:databend-common-storages-stream"]
+virtual-column = []
 jemalloc = ["databend-common-base/jemalloc", "tikv-jemalloc-ctl"]
 
 [dependencies]
@@ -16,7 +20,7 @@ chrono = { workspace = true }
 databend-common-ast = { workspace = true }
 databend-common-base = { workspace = true }
 databend-common-catalog = { workspace = true }
-databend-common-cloud-control = { workspace = true }
+databend-common-cloud-control = { workspace = true, optional = true }
 databend-common-config = { workspace = true }
 databend-common-exception = { workspace = true }
 databend-common-expression = { workspace = true }
@@ -26,11 +30,11 @@ databend-common-meta-api = { workspace = true }
 databend-common-meta-app = { workspace = true }
 databend-common-metrics = { workspace = true }
 databend-common-pipeline = { workspace = true }
-databend-common-sql = { workspace = true }
+databend-common-sql = { path = "../../sql", default-features = false }
 databend-common-storage = { workspace = true }
 databend-common-storages-basic = { workspace = true }
 databend-common-storages-fuse = { workspace = true }
-databend-common-storages-stream = { workspace = true }
+databend-common-storages-stream = { workspace = true, optional = true }
 databend-common-users = { workspace = true }
 databend-meta-client = { workspace = true }
 databend-storages-common-cache = { workspace = true }

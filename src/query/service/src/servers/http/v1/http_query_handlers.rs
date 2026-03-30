@@ -81,6 +81,7 @@ use crate::servers::http::v1::HttpQueryManager;
 use crate::servers::http::v1::HttpSessionConf;
 use crate::servers::http::v1::catalog::catalog_stats_handler;
 use crate::servers::http::v1::catalog::get_database_table_handler;
+#[cfg(feature = "storage-stream")]
 use crate::servers::http::v1::catalog::list_database_streams_handler;
 use crate::servers::http::v1::catalog::list_database_table_fields_handler;
 use crate::servers::http::v1::catalog::list_database_tables_handler;
@@ -94,6 +95,7 @@ use crate::servers::http::v1::query::Progresses;
 use crate::servers::http::v1::query::blocks_serializer::BlocksSerializer;
 use crate::servers::http::v1::refresh_handler;
 use crate::servers::http::v1::roles::list_roles_handler;
+#[cfg(feature = "storage-stage")]
 use crate::servers::http::v1::streaming_load_handler;
 use crate::servers::http::v1::upload_to_stage;
 use crate::servers::http::v1::users::create_user_handler;
@@ -855,6 +857,8 @@ pub async fn heartbeat_handler(
 
 pub fn query_route() -> Route {
     // Note: endpoints except /v1/query may change without notice, use uris in response instead
+    let mut route = Route::new();
+
     let rules = [
         ("/query", post(query_handler), EndpointKind::StartQuery),
         (
@@ -924,6 +928,7 @@ pub fn query_route() -> Route {
             get(list_database_table_fields_handler),
             EndpointKind::Catalog,
         ),
+        #[cfg(feature = "storage-stream")]
         (
             "/catalog/databases/:database/streams",
             get(list_database_streams_handler),
@@ -949,21 +954,30 @@ pub fn query_route() -> Route {
             get(list_users_handler).post(create_user_handler),
             EndpointKind::Metadata,
         ),
-        (
-            "/streaming_load",
-            put(streaming_load_handler),
-            EndpointKind::StreamingLoad,
-        ),
         ("/roles", get(list_roles_handler), EndpointKind::Metadata),
     ];
 
-    let mut route = Route::new();
     for (path, endpoint, kind) in rules.into_iter() {
         route = route.at(
             path,
             endpoint
                 .with(MetricsMiddleware::new(path))
                 .with(HTTPSessionMiddleware::create(HttpHandlerKind::Query, kind))
+                .with(CookieJarManager::new()),
+        );
+    }
+
+    #[cfg(feature = "storage-stage")]
+    {
+        let path = "/streaming_load";
+        route = route.at(
+            path,
+            put(streaming_load_handler)
+                .with(MetricsMiddleware::new(path))
+                .with(HTTPSessionMiddleware::create(
+                    HttpHandlerKind::Query,
+                    EndpointKind::StreamingLoad,
+                ))
                 .with(CookieJarManager::new()),
         );
     }

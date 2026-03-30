@@ -8,14 +8,67 @@ publish = { workspace = true }
 edition = { workspace = true }
 
 [features]
-default = ["simd", "jemalloc"]
+default = [
+    "simd",
+    "jemalloc",
+    "full-build-info",
+    "sql-script",
+    "script-udf",
+    "cloud-control",
+    "storage-stream",
+    "virtual-column",
+    "fuse-management",
+    "storage-stage",
+    "storage-azblob",
+    "storage-cos",
+    "storage-delta",
+    "storage-gcs",
+    "storage-hive",
+    "storage-huggingface",
+    "storage-iceberg",
+    "storage-ipfs",
+    "storage-obs",
+    "storage-oss",
+    "storage-webhdfs",
+]
 memory-profiling = [
     "databend-query/memory-profiling",
     "databend-common-base/memory-profiling",
 ]
+full-build-info = ["databend-enterprise-query/full-build-info", "databend-query/full-build-info"]
+sql-script = ["databend-enterprise-query/sql-script", "databend-query/sql-script"]
+script-udf = ["databend-enterprise-query/script-udf", "databend-query/script-udf"]
+cloud-control = ["databend-enterprise-query/cloud-control", "databend-query/cloud-control"]
+storage-stream = ["databend-enterprise-query/storage-stream", "databend-query/storage-stream"]
+virtual-column = [
+    "databend-enterprise-query/virtual-column",
+    "databend-query/virtual-column",
+]
+fuse-management = [
+    "databend-enterprise-query/fuse-management",
+    "databend-query/fuse-management",
+]
+storage-stage = ["databend-enterprise-query/storage-stage", "databend-query/storage-stage"]
 python-udf = ["databend-query/python-udf"]
-simd = ["databend-query/simd"]
+simd = ["databend-enterprise-query/simd", "databend-query/simd"]
 jemalloc = ["databend-common-base/jemalloc", "databend-query/jemalloc"]
+storage-azblob = ["databend-enterprise-query/storage-azblob", "databend-query/storage-azblob"]
+storage-cos = ["databend-enterprise-query/storage-cos", "databend-query/storage-cos"]
+storage-delta = ["databend-enterprise-query/storage-delta", "databend-query/storage-delta"]
+storage-gcs = ["databend-enterprise-query/storage-gcs", "databend-query/storage-gcs"]
+storage-hive = ["databend-enterprise-query/storage-hive", "databend-query/storage-hive"]
+storage-huggingface = [
+    "databend-enterprise-query/storage-huggingface",
+    "databend-query/storage-huggingface",
+]
+storage-iceberg = ["databend-enterprise-query/storage-iceberg", "databend-query/storage-iceberg"]
+storage-ipfs = ["databend-enterprise-query/storage-ipfs", "databend-query/storage-ipfs"]
+storage-obs = ["databend-enterprise-query/storage-obs", "databend-query/storage-obs"]
+storage-oss = ["databend-enterprise-query/storage-oss", "databend-query/storage-oss"]
+storage-webhdfs = [
+    "databend-enterprise-query/storage-webhdfs",
+    "databend-query/storage-webhdfs",
+]
 
 [dependencies]
 clap = { workspace = true }
@@ -26,10 +79,10 @@ databend-common-license = { workspace = true }
 databend-common-metrics = { workspace = true }
 databend-common-storage = { workspace = true }
 databend-common-tracing = { workspace = true }
-databend-common-version = { workspace = true }
-databend-enterprise-query = { workspace = true }
+databend-common-version = { path = "../common/version", default-features = false }
+databend-enterprise-query = { path = "../query/ee", default-features = false }
 databend-meta-ver = { workspace = true }
-databend-query = { workspace = true }
+databend-query = { path = "../query/service", default-features = false }
 databend-storages-common-table-meta = { workspace = true }
 limits-rs = { workspace = true }
 log = { workspace = true }
