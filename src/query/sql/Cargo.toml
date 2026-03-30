@@ -9,6 +9,7 @@ edition = { workspace = true }
 [features]
 default = ["cloud-control"]
 cloud-control = ["dep:databend-common-cloud-control"]
+storage-stage-lance = []
 storage-hdfs = ["databend-common-config/storage-hdfs"]
 
 [dependencies]

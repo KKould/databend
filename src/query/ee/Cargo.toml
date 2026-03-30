@@ -18,6 +18,7 @@ default = [
     "virtual-column",
     "fuse-management",
     "storage-stage",
+    "storage-stage-lance",
     "storage-azblob",
     "storage-cos",
     "storage-delta",
@@ -46,6 +47,7 @@ virtual-column = [
 ]
 fuse-management = ["databend-query/fuse-management"]
 storage-stage = ["databend-query/storage-stage"]
+storage-stage-lance = ["databend-query/storage-stage-lance"]
 storage-azblob = ["databend-query/storage-azblob"]
 storage-cos = ["databend-query/storage-cos"]
 storage-delta = ["databend-query/storage-delta"]

@@ -19,6 +19,7 @@ default = [
     "virtual-column",
     "fuse-management",
     "storage-stage",
+    "storage-stage-lance",
     "storage-azblob",
     "storage-cos",
     "storage-delta",
@@ -49,6 +50,10 @@ fuse-management = [
     "databend-query/fuse-management",
 ]
 storage-stage = ["databend-enterprise-query/storage-stage", "databend-query/storage-stage"]
+storage-stage-lance = [
+    "databend-enterprise-query/storage-stage-lance",
+    "databend-query/storage-stage-lance",
+]
 python-udf = ["databend-query/python-udf"]
 simd = ["databend-enterprise-query/simd", "databend-query/simd"]
 jemalloc = ["databend-common-base/jemalloc", "databend-query/jemalloc"]

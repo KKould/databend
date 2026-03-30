@@ -18,6 +18,7 @@ default = [
     "virtual-column",
     "fuse-management",
     "storage-stage",
+    "storage-stage-lance",
     "storage-azblob",
     "storage-cos",
     "storage-delta",
@@ -52,6 +53,11 @@ virtual-column = [
 ]
 fuse-management = []
 storage-stage = ["dep:databend-common-storages-stage"]
+storage-stage-lance = [
+    "storage-stage",
+    "databend-common-sql/storage-stage-lance",
+    "databend-common-storages-stage/storage-stage-lance",
+]
 disable_initial_exec_tls = ["databend-common-base/disable_initial_exec_tls"]
 jemalloc = ["databend-common-storages-system/jemalloc"]
 memory-profiling = ["databend-common-base/memory-profiling", "databend-common-http/memory-profiling"]
@@ -146,7 +152,7 @@ databend-common-storages-iceberg = { workspace = true, optional = true }
 databend-common-storages-information-schema = { workspace = true }
 databend-common-storages-orc = { workspace = true }
 databend-common-storages-parquet = { workspace = true }
-databend-common-storages-stage = { workspace = true, optional = true }
+databend-common-storages-stage = { path = "../storages/stage", optional = true, default-features = false }
 databend-common-storages-stream = { workspace = true, optional = true }
 databend-common-storages-system = { path = "../storages/system", default-features = false }
 databend-common-telemetry = { workspace = true }
