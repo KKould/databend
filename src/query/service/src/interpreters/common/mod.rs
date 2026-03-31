@@ -25,7 +25,7 @@ mod stream;
 #[cfg(not(feature = "storage-stream"))]
 mod stream_stub;
 mod table;
-#[cfg(feature = "cloud-control")]
+#[cfg(all(feature = "cloud-control", feature = "task-support"))]
 mod task;
 mod util;
 #[cfg(feature = "cloud-control")]
@@ -50,11 +50,11 @@ pub use stream_stub::dml_build_update_stream_req;
 #[cfg(not(feature = "storage-stream"))]
 pub use stream_stub::query_build_update_stream_req;
 pub use table::check_referenced_computed_columns;
-#[cfg(feature = "cloud-control")]
+#[cfg(all(feature = "cloud-control", feature = "task-support"))]
 pub use task::get_task_client_config;
-#[cfg(feature = "cloud-control")]
+#[cfg(all(feature = "cloud-control", feature = "task-support"))]
 pub use task::make_schedule_options;
-#[cfg(feature = "cloud-control")]
+#[cfg(all(feature = "cloud-control", feature = "task-support"))]
 pub use task::make_warehouse_options;
 pub use util::check_deduplicate_label;
 #[cfg(feature = "cloud-control")]

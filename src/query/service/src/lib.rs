@@ -72,6 +72,7 @@ pub mod table_functions;
 pub mod test_kits;
 
 mod global_services;
+#[cfg(feature = "task-support")]
 pub mod task;
 
 pub mod physical_plans;

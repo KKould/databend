@@ -7,9 +7,10 @@ publish = { workspace = true }
 edition = { workspace = true }
 
 [features]
-default = ["cloud-control", "storage-stream", "virtual-column"]
+default = ["cloud-control", "storage-stream", "task-support", "virtual-column"]
 cloud-control = ["dep:databend-common-cloud-control"]
 storage-stream = ["dep:databend-common-storages-stream"]
+task-support = []
 virtual-column = []
 jemalloc = ["databend-common-base/jemalloc", "tikv-jemalloc-ctl"]
 

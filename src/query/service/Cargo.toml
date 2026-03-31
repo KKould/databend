@@ -15,6 +15,7 @@ default = [
     "script-udf",
     "cloud-control",
     "storage-stream",
+    "task-support",
     "virtual-column",
     "fuse-management",
     "storage-stage",
@@ -47,6 +48,7 @@ storage-stream = [
     "databend-common-storages-factory/storage-stream",
     "databend-common-storages-system/storage-stream",
 ]
+task-support = ["databend-common-storages-system/task-support"]
 virtual-column = [
     "dep:databend-enterprise-virtual-column",
     "databend-common-storages-system/virtual-column",
