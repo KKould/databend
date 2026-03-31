@@ -48,7 +48,11 @@ storage-stream = [
     "databend-common-storages-factory/storage-stream",
     "databend-common-storages-system/storage-stream",
 ]
-task-support = ["databend-common-storages-system/task-support"]
+task-support = [
+    "dep:databend-common-cloud-control",
+    "databend-common-storages-system/cloud-control",
+    "databend-common-storages-system/task-support",
+]
 virtual-column = [
     "dep:databend-enterprise-virtual-column",
     "databend-common-storages-system/virtual-column",

@@ -28,7 +28,8 @@ use databend_common_cloud_control::client_config::build_client_config;
 use databend_common_cloud_control::client_config::make_request;
 use databend_common_cloud_control::cloud_api::CloudControlApiProvider;
 use databend_common_cloud_control::pb::GetTaskDependentsRequest;
-use databend_common_cloud_control::pb::Task;
+use databend_common_cloud_control::pb::Task as PbTask;
+use databend_common_cloud_control::task_utils::Task as CloudTask;
 use databend_common_config::GlobalConfig;
 use databend_common_exception::ErrorCode;
 use databend_common_expression::DataBlock;
@@ -51,7 +52,6 @@ use databend_common_pipeline::core::Pipeline;
 use databend_common_pipeline::core::ProcessorPtr;
 use databend_common_pipeline::sources::AsyncSource;
 use databend_common_pipeline::sources::AsyncSourcer;
-use databend_common_storages_system::TaskRecord;
 
 pub struct TaskDependentsTable {
     table_info: TableInfo,
@@ -185,7 +185,7 @@ impl TaskDependentsSource {
             recursive: self.recursive,
         }
     }
-    fn to_block(&self, tasks: &Vec<Task>) -> databend_common_exception::Result<DataBlock> {
+    fn to_block(&self, tasks: &Vec<PbTask>) -> databend_common_exception::Result<DataBlock> {
         let mut created_on: Vec<i64> = Vec::with_capacity(tasks.len());
         let mut name: Vec<String> = Vec::with_capacity(tasks.len());
         let mut owner: Vec<String> = Vec::with_capacity(tasks.len());
@@ -199,18 +199,17 @@ impl TaskDependentsSource {
         let mut condition_text: Vec<String> = Vec::with_capacity(tasks.len());
 
         for task in tasks {
-            let task = task.clone();
-            let tsk: TaskRecord = task.try_into()?;
-            created_on.push(tsk.created_at.timestamp_micros());
-            name.push(tsk.task_name.clone());
-            owner.push(tsk.owner.clone());
-            comment.push(tsk.comment.clone());
-            warehouse.push(tsk.warehouse.clone());
-            schedule.push(tsk.schedule_options.clone());
-            predecessors.push(tsk.after.clone());
-            state.push(tsk.status.to_string());
-            definition.push(tsk.query_text.clone());
-            condition_text.push(tsk.condition_text.clone());
+            let task: CloudTask = task.clone().try_into()?;
+            created_on.push(task.created_at.timestamp_micros());
+            name.push(task.task_name.clone());
+            owner.push(task.owner.clone());
+            comment.push(task.comment.clone());
+            warehouse.push(task.warehouse_options.and_then(|opts| opts.warehouse));
+            schedule.push(task.schedule_options.clone());
+            predecessors.push(task.after.clone());
+            state.push(task.status.to_string());
+            definition.push(task.query_text.clone());
+            condition_text.push(task.condition_text.clone());
         }
 
         Ok(DataBlock::new_from_columns(vec![

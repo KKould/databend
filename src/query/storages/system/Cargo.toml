@@ -10,7 +10,7 @@ edition = { workspace = true }
 default = ["cloud-control", "storage-stream", "task-support", "virtual-column"]
 cloud-control = ["dep:databend-common-cloud-control"]
 storage-stream = ["dep:databend-common-storages-stream"]
-task-support = []
+task-support = ["cloud-control"]
 virtual-column = []
 jemalloc = ["databend-common-base/jemalloc", "tikv-jemalloc-ctl"]
 
