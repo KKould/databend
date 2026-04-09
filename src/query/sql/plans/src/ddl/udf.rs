@@ -12,11 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod dynamic_table;
-mod index;
-mod table;
+use databend_common_meta_app::principal::UserDefinedFunction;
+use databend_common_meta_app::schema::CreateOption;
 
-pub use databend_common_sql_plans::ddl::*;
-pub use dynamic_table::*;
-pub use index::*;
-pub use table::*;
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CreateUDFPlan {
+    pub create_option: CreateOption,
+    pub udf: UserDefinedFunction,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AlterUDFPlan {
+    pub udf: UserDefinedFunction,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DropUDFPlan {
+    pub if_exists: bool,
+    pub udf: String,
+}
