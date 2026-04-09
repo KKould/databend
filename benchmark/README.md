@@ -31,3 +31,5 @@ Recent notes:
 - `internal/query_hot_compile_service_server_split.md`: hot compile benchmark
   for the `databend-query-server-api` and `databend-query-metrics-server`
   extraction experiment.
+- `internal/query_hot_compile_federated.md`: hot compile benchmark for the
+  `databend-query-federated` extraction experiment.

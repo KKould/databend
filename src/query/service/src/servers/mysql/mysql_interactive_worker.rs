@@ -50,6 +50,8 @@ use rand::thread_rng;
 use tokio::io::AsyncWrite;
 use uuid::Uuid;
 
+use databend_query_federated::MySQLFederated;
+
 use crate::auth::CredentialType;
 use crate::interpreters::Interpreter;
 use crate::interpreters::InterpreterFactory;
@@ -58,7 +60,6 @@ use crate::servers::login_history::LoginEventType;
 use crate::servers::login_history::LoginHandler;
 use crate::servers::login_history::LoginHistory;
 use crate::servers::mysql::MYSQL_VERSION;
-use crate::servers::mysql::MySQLFederated;
 use crate::servers::mysql::writers::DFInitResultWriter;
 use crate::servers::mysql::writers::DFQueryResultWriter;
 use crate::servers::mysql::writers::ProgressReporter;

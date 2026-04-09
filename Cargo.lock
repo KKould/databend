@@ -5985,6 +5985,7 @@ dependencies = [
  "databend-meta-client 260205.4.0",
  "databend-meta-plugin-semaphore",
  "databend-meta-runtime",
+ "databend-query-federated",
  "databend-query-metrics-server",
  "databend-query-server-api",
  "databend-storages-common-blocks",
@@ -6071,6 +6072,14 @@ dependencies = [
  "walkdir",
  "wiremock",
  "zip",
+]
+
+[[package]]
+name = "databend-query-federated"
+version = "0.1.0"
+dependencies = [
+ "databend-common-expression",
+ "regex",
 ]
 
 [[package]]
