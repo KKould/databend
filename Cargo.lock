@@ -4349,6 +4349,7 @@ dependencies = [
  "databend-common-metrics",
  "databend-common-pipeline",
  "databend-common-settings",
+ "databend-common-sql-plans",
  "databend-common-sql-test-support",
  "databend-common-statistics",
  "databend-common-storage",
@@ -4392,6 +4393,18 @@ dependencies = [
  "unicase",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "databend-common-sql-plans"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "databend-common-ast",
+ "databend-common-catalog",
+ "databend-common-expression",
+ "databend-common-meta-app",
+ "serde",
 ]
 
 [[package]]

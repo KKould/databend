@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod dynamic_table;
-mod index;
-mod table;
-
-pub use databend_common_sql_plans::ddl::*;
-pub use dynamic_table::*;
-pub use index::*;
-pub use table::*;
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct KillPlan {
+    pub id: String,
+    pub kill_connection: bool,
+}

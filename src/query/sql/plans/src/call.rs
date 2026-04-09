@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod dynamic_table;
-mod index;
-mod table;
-
-pub use databend_common_sql_plans::ddl::*;
-pub use dynamic_table::*;
-pub use index::*;
-pub use table::*;
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CallPlan {
+    pub name: String,
+    pub args: Vec<String>,
+}

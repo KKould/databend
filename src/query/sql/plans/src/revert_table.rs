@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod dynamic_table;
-mod index;
-mod table;
+use databend_common_catalog::table::NavigationPoint;
+use databend_common_meta_app::tenant::Tenant;
 
-pub use databend_common_sql_plans::ddl::*;
-pub use dynamic_table::*;
-pub use index::*;
-pub use table::*;
+#[derive(Clone, Debug)]
+pub struct RevertTablePlan {
+    pub tenant: Tenant,
+    pub catalog: String,
+    pub database: String,
+    pub table: String,
+    pub point: NavigationPoint,
+}

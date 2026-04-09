@@ -12,11 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod dynamic_table;
-mod index;
-mod table;
+use serde::Deserialize;
+use serde::Serialize;
 
-pub use databend_common_sql_plans::ddl::*;
-pub use dynamic_table::*;
-pub use index::*;
-pub use table::*;
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct SystemPlan {
+    pub action: SystemAction,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub enum SystemAction {
+    Backtrace(bool),
+    FlushPrivileges,
+}

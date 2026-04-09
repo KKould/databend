@@ -194,7 +194,7 @@ use crate::plans::VacuumTablePlan;
 use crate::plans::VacuumTemporaryFilesPlan;
 use crate::plans::VacuumVirtualColumnPlan;
 use crate::plans::copy_into_location::CopyIntoLocationPlan;
-use crate::plans::row_access_policy::CreateRowAccessPolicyPlan;
+use crate::plans::CreateRowAccessPolicyPlan;
 use crate::plans::worker_schema;
 
 #[derive(Educe)]

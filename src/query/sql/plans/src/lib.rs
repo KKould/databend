@@ -12,11 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod dynamic_table;
-mod index;
-mod table;
+mod call;
+mod data_mask;
+pub mod ddl;
+mod kill;
+mod presign;
+mod revert_table;
+mod row_access_policy;
+mod set_priority;
+mod system;
+mod virtual_column;
 
-pub use databend_common_sql_plans::ddl::*;
-pub use dynamic_table::*;
-pub use index::*;
-pub use table::*;
+pub use call::CallPlan;
+pub use data_mask::*;
+pub use ddl::*;
+pub use kill::KillPlan;
+pub use presign::*;
+pub use revert_table::RevertTablePlan;
+pub use row_access_policy::*;
+pub use set_priority::SetPriorityPlan;
+pub use system::*;
+pub use virtual_column::*;

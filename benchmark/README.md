@@ -21,3 +21,8 @@ In this subdirectory, you'll find scripts for Hits tests, sample queries, and pe
 The internal subdirectory contains testing tools and scripts dedicated to ensuring the performance of internal queries.
 
 These tests may be conducted to ensure the system performs well when handling internal queries specific.
+
+Recent notes:
+
+- `internal/query_hot_compile_sql_plans.md`: hot compile benchmark for the first
+  `databend-common-sql-plans` extraction experiment.

@@ -103,6 +103,7 @@ databend-common-protos = { path = "src/meta/protos" }
 databend-common-script = { path = "src/query/script" }
 databend-common-settings = { path = "src/query/settings" }
 databend-common-sql = { path = "src/query/sql" }
+databend-common-sql-plans = { path = "src/query/sql/plans" }
 databend-common-sql-test-support = { path = "src/query/sql/test-support" }
 databend-common-sqlsmith = { path = "src/tests/sqlsmith" }
 databend-common-statistics = { path = "src/common/statistics" }
