@@ -33,3 +33,5 @@ Recent notes:
   extraction experiment.
 - `internal/query_hot_compile_federated.md`: hot compile benchmark for the
   `databend-query-federated` extraction experiment.
+- `internal/query_hot_compile_admin_server.md`: hot compile benchmark for the
+  `databend-query-admin-server` extraction experiment.

@@ -5985,6 +5985,7 @@ dependencies = [
  "databend-meta-client 260205.4.0",
  "databend-meta-plugin-semaphore",
  "databend-meta-runtime",
+ "databend-query-admin-server",
  "databend-query-federated",
  "databend-query-metrics-server",
  "databend-query-server-api",
@@ -6072,6 +6073,21 @@ dependencies = [
  "walkdir",
  "wiremock",
  "zip",
+]
+
+[[package]]
+name = "databend-query-admin-server"
+version = "0.1.0"
+dependencies = [
+ "async-backtrace",
+ "async-trait",
+ "databend-common-config",
+ "databend-common-exception",
+ "databend-common-http",
+ "databend-meta-client 260205.4.0",
+ "databend-query-server-api",
+ "log",
+ "poem",
 ]
 
 [[package]]
