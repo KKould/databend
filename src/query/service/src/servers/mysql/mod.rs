@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod mysql_federated;
 mod mysql_handler;
 mod mysql_interactive_worker;
 mod mysql_session;
 mod tls;
 mod writers;
 
-pub use self::mysql_federated::MySQLFederated;
 pub use self::mysql_handler::MySQLHandler;
 pub use self::mysql_session::MySQLConnection;
 pub use self::tls::MySQLTlsConfig;

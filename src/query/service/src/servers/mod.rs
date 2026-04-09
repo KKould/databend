@@ -22,12 +22,10 @@ pub use self::http::HttpHandler;
 pub use self::http::HttpHandlerKind;
 pub use self::http::v1::HttpQueryManager;
 pub use self::mysql::MySQLConnection;
-pub use self::mysql::MySQLFederated;
 pub use self::mysql::MySQLHandler;
 pub use self::mysql::MySQLTlsConfig;
 
 pub mod admin;
-pub(crate) mod federated_helper;
 pub mod flight;
 pub mod flight_sql;
 pub mod http;
