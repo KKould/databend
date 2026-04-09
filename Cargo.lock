@@ -4348,6 +4348,7 @@ dependencies = [
  "databend-common-metrics",
  "databend-common-pipeline",
  "databend-common-settings",
+ "databend-common-sql-name-resolution",
  "databend-common-sql-plans",
  "databend-common-sql-test-support",
  "databend-common-statistics",
@@ -4392,6 +4393,18 @@ dependencies = [
  "unicase",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "databend-common-sql-name-resolution"
+version = "0.1.0"
+dependencies = [
+ "databend-common-ast",
+ "databend-common-catalog",
+ "databend-common-exception",
+ "databend-common-expression",
+ "databend-common-settings",
+ "derive-visitor",
 ]
 
 [[package]]

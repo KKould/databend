@@ -151,7 +151,7 @@ use tantivy_query_grammar::UserInputLeaf;
 use tantivy_query_grammar::parse_query_lenient;
 use unicase::Ascii;
 
-use super::name_resolution::NameResolutionContext;
+use super::NameResolutionContext;
 use super::normalize_identifier;
 use crate::BaseTableColumn;
 use crate::BindContext;
