@@ -34,7 +34,7 @@ use poem::get;
 use poem::listener::OpensslTlsConfig;
 use poem::post;
 
-use crate::servers::Server;
+use databend_query_server_api::Server;
 
 pub struct AdminService {
     config: InnerConfig,

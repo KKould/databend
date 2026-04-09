@@ -5982,6 +5982,8 @@ dependencies = [
  "databend-query-script-udf-support",
  "databend-query-storage-stage-support",
  "databend-query-task-support",
+ "databend-query-metrics-server",
+ "databend-query-server-api",
  "databend-storages-common-blocks",
  "databend-storages-common-cache",
  "databend-storages-common-index",
@@ -6128,6 +6130,29 @@ dependencies = [
  "itertools 0.13.0",
  "jiff",
  "serde_json",
+]
+
+[[package]]
+name = "databend-query-metrics-server"
+version = "0.1.0"
+dependencies = [
+ "async-backtrace",
+ "async-trait",
+ "databend-common-base",
+ "databend-common-exception",
+ "databend-common-http",
+ "databend-query-server-api",
+ "poem",
+]
+
+[[package]]
+name = "databend-query-server-api"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "databend-common-exception",
+ "futures",
+ "tokio-stream",
 ]
 
 [[package]]

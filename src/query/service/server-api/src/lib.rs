@@ -12,4 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub use databend_query_metrics_server::MetricService;
+use std::net::SocketAddr;
+
+use databend_common_exception::Result;
+use futures::future::Abortable;
+use tokio_stream::wrappers::TcpListenerStream;
+
+pub type ListeningStream = Abortable<TcpListenerStream>;
+
+#[async_trait::async_trait]
+pub trait Server: Send {
+    async fn shutdown(&mut self, graceful: bool);
+    async fn start(&mut self, listening: SocketAddr) -> Result<SocketAddr>;
+}
