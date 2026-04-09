@@ -108,6 +108,7 @@ databend-common-sql-plans = { path = "src/query/sql/plans" }
 databend-common-sql-test-support = { path = "src/query/sql/test-support" }
 databend-query-admin-server = { path = "src/query/service/admin-server" }
 databend-query-federated = { path = "src/query/service/federated" }
+databend-query-http-handler-server = { path = "src/query/service/http-handler-server" }
 databend-query-metrics-server = { path = "src/query/service/metrics-server" }
 databend-query-server-api = { path = "src/query/service/server-api" }
 databend-common-sqlsmith = { path = "src/tests/sqlsmith" }
