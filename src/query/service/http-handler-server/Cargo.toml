@@ -1,0 +1,20 @@
+[package]
+name = "databend-query-http-handler-server"
+version = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+anyerror = { workspace = true }
+async-backtrace = { workspace = true }
+async-trait = { workspace = true }
+databend-common-exception = { workspace = true }
+databend-common-http = { workspace = true }
+databend-query-server-api = { workspace = true }
+log = { workspace = true }
+poem = { workspace = true }
+
+[lints]
+workspace = true

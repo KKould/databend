@@ -5987,6 +5987,7 @@ dependencies = [
  "databend-meta-runtime",
  "databend-query-admin-server",
  "databend-query-federated",
+ "databend-query-http-handler-server",
  "databend-query-metrics-server",
  "databend-query-server-api",
  "databend-storages-common-blocks",
@@ -6096,6 +6097,20 @@ version = "0.1.0"
 dependencies = [
  "databend-common-expression",
  "regex",
+]
+
+[[package]]
+name = "databend-query-http-handler-server"
+version = "0.1.0"
+dependencies = [
+ "anyerror",
+ "async-backtrace",
+ "async-trait",
+ "databend-common-exception",
+ "databend-common-http",
+ "databend-query-server-api",
+ "log",
+ "poem",
 ]
 
 [[package]]

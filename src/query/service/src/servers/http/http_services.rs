@@ -13,30 +13,21 @@
 // limitations under the License.
 
 use std::net::SocketAddr;
-use std::time::Duration;
 
 use databend_common_config::GlobalConfig;
-use databend_common_config::InnerConfig;
 use databend_common_exception::ErrorCode;
-use databend_common_http::HttpError;
-use databend_common_http::HttpShutdownHandler;
-use databend_meta_client::types::anyerror::AnyError;
-use http::StatusCode;
-use log::info;
-use poem::Endpoint;
 use poem::EndpointExt;
-use poem::IntoResponse;
 use poem::Route;
+use poem::endpoint::BoxEndpoint;
 use poem::get;
-use poem::listener::OpensslTlsConfig;
 use poem::middleware::CatchPanic;
 use poem::middleware::CookieJarManager;
 use poem::middleware::NormalizePath;
 use poem::middleware::TrailingSlash;
 
+use databend_query_http_handler_server as http_handler_server;
 use databend_query_server_api::Server;
 
-use super::v1::HttpQueryContext;
 use crate::servers::http::middleware::EndpointKind;
 use crate::servers::http::middleware::HTTPSessionMiddleware;
 use crate::servers::http::middleware::PanicHandler;
@@ -73,33 +64,29 @@ echo '{}' | curl -u${{USER}} -p${{PASSWORD}}: '{:?}/?query=INSERT%20INTO%20test%
 }
 
 pub struct HttpHandler {
-    shutdown_handler: HttpShutdownHandler,
-    kind: HttpHandlerKind,
-}
-
-#[poem::handler]
-#[async_backtrace::framed]
-pub async fn verify_handler(_ctx: &HttpQueryContext) -> poem::Result<impl IntoResponse> {
-    Ok(StatusCode::OK)
+    inner: Box<http_handler_server::HttpHandlerServer>,
 }
 
 impl HttpHandler {
     pub fn create(kind: HttpHandlerKind) -> Box<dyn Server> {
+        let config = GlobalConfig::instance();
+        let tls_cert_path = config.query.common.http_handler_tls_server_cert.clone();
+        let tls_key_path = config.query.common.http_handler_tls_server_key.clone();
+
         Box::new(HttpHandler {
-            kind,
-            shutdown_handler: HttpShutdownHandler::create("http handler".to_string()),
+            inner: http_handler_server::HttpHandlerServer::create(
+                Box::new(move |sock| Self::build_router(kind, sock)),
+                tls_cert_path,
+                tls_key_path,
+            ),
         })
     }
 
     #[allow(clippy::let_with_type_underscore)]
-    #[async_backtrace::framed]
-    async fn build_router(&self, sock: SocketAddr) -> impl Endpoint + use<> {
+    fn build_router(kind: HttpHandlerKind, sock: SocketAddr) -> BoxEndpoint<'static> {
         let ep_clickhouse = Route::new()
             .nest("/", clickhouse_router())
-            .with(HTTPSessionMiddleware::create(
-                self.kind,
-                EndpointKind::Clickhouse,
-            ))
+            .with(HTTPSessionMiddleware::create(kind, EndpointKind::Clickhouse))
             .with(CookieJarManager::new());
 
         let ep_usage = Route::new().at(
@@ -110,7 +97,7 @@ impl HttpHandler {
         );
         let ep_health = Route::new().at("/", get(poem::endpoint::make_sync(move |_| "ok")));
 
-        let ep = match self.kind {
+        let ep = match kind {
             HttpHandlerKind::Query => Route::new()
                 .at("/", ep_usage)
                 .nest("/health", ep_health)
@@ -125,75 +112,17 @@ impl HttpHandler {
             .around(json_response)
             .boxed()
     }
-
-    fn build_tls(config: &InnerConfig) -> Result<OpensslTlsConfig, std::io::Error> {
-        let cfg = OpensslTlsConfig::new()
-            .cert_from_file(config.query.common.http_handler_tls_server_cert.as_str())
-            .key_from_file(config.query.common.http_handler_tls_server_key.as_str());
-
-        // if Path::new(&config.query.http_handler_tls_server_root_ca_cert).exists() {
-        //     cfg = cfg.client_auth_required(std::fs::read(
-        //         config.query.http_handler_tls_server_root_ca_cert.as_str(),
-        //     )?);
-        // }
-        Ok(cfg)
-    }
-
-    #[async_backtrace::framed]
-    async fn start_with_tls(&mut self, listening: SocketAddr) -> Result<SocketAddr, HttpError> {
-        info!("Http Handler TLS enabled");
-
-        let config = GlobalConfig::instance();
-
-        let tls_config = Self::build_tls(config.as_ref())
-            .map_err(|e: std::io::Error| HttpError::TlsConfigError(AnyError::new(&e)))?;
-
-        let router = self.build_router(listening).await;
-        self.shutdown_handler
-            .start_service(
-                listening,
-                Some(tls_config),
-                router,
-                Some(Duration::from_millis(1000)),
-            )
-            .await
-    }
-
-    #[async_backtrace::framed]
-    async fn start_without_tls(&mut self, listening: SocketAddr) -> Result<SocketAddr, HttpError> {
-        let router = self.build_router(listening).await;
-        self.shutdown_handler
-            .start_service(listening, None, router, Some(Duration::from_millis(1000)))
-            .await
-    }
 }
 
 #[async_trait::async_trait]
 impl Server for HttpHandler {
     #[async_backtrace::framed]
     async fn shutdown(&mut self, graceful: bool) {
-        self.shutdown_handler.shutdown(graceful).await;
+        self.inner.shutdown(graceful).await;
     }
 
     #[async_backtrace::framed]
     async fn start(&mut self, listening: SocketAddr) -> Result<SocketAddr, ErrorCode> {
-        let config = GlobalConfig::instance();
-
-        let res = match config.query.common.http_handler_tls_server_key.is_empty()
-            || config.query.common.http_handler_tls_server_cert.is_empty()
-        {
-            true => self.start_without_tls(listening).await,
-            false => self.start_with_tls(listening).await,
-        };
-
-        res.map_err(|e: HttpError| match e {
-            HttpError::BadAddressFormat(any_err) => {
-                ErrorCode::BadAddressFormat(any_err.to_string())
-            }
-            le @ HttpError::ListenError { .. } => ErrorCode::CannotListenerPort(le.to_string()),
-            HttpError::TlsConfigError(any_err) => {
-                ErrorCode::TLSConfigurationFailure(any_err.to_string())
-            }
-        })
+        self.inner.start(listening).await
     }
 }
