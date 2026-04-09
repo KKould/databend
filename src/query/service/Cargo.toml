@@ -116,6 +116,7 @@ databend-query-admin-server = { workspace = true }
 databend-query-federated = { workspace = true }
 databend-query-http-handler-server = { workspace = true }
 databend-query-metrics-server = { workspace = true }
+databend-query-mysql-server = { workspace = true }
 databend-query-server-api = { workspace = true }
 databend-meta-client = { workspace = true }
 databend-meta-plugin-semaphore = { workspace = true }
