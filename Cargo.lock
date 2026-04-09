@@ -5989,6 +5989,7 @@ dependencies = [
  "databend-query-federated",
  "databend-query-http-handler-server",
  "databend-query-metrics-server",
+ "databend-query-mysql-server",
  "databend-query-server-api",
  "databend-storages-common-blocks",
  "databend-storages-common-cache",
@@ -6124,6 +6125,26 @@ dependencies = [
  "databend-common-http",
  "databend-query-server-api",
  "poem",
+]
+
+[[package]]
+name = "databend-query-mysql-server"
+version = "0.1.0"
+dependencies = [
+ "async-backtrace",
+ "async-trait",
+ "databend-common-base",
+ "databend-common-exception",
+ "databend-query-server-api",
+ "futures",
+ "itertools 0.13.0",
+ "log",
+ "rustls 0.23.36",
+ "rustls-pemfile",
+ "rustls-pki-types",
+ "socket2 0.5.9",
+ "tokio",
+ "tokio-stream",
 ]
 
 [[package]]

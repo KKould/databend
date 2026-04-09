@@ -12,37 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 use databend_common_base::runtime::Runtime;
-use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
-use futures::StreamExt;
-use futures::future::AbortHandle;
-use futures::future::AbortRegistration;
-use futures::future::Abortable;
+use databend_query_mysql_server as mysql_server;
+use databend_query_mysql_server::MySQLSocketHandler;
+use databend_query_mysql_server::MySQLTlsConfig;
+use databend_query_server_api::Server;
 use log::error;
-use rustls::ServerConfig;
 use socket2::TcpKeepalive;
 use tokio::net::TcpStream;
-use tokio::task::JoinHandle;
-use tokio_stream::wrappers::TcpListenerStream;
-
-use databend_query_server_api::ListeningStream;
-use databend_query_server_api::Server;
 
 use crate::servers::mysql::mysql_session::MySQLConnection;
-use crate::servers::mysql::tls::MySQLTlsConfig;
 use crate::sessions::SessionManager;
 
 pub struct MySQLHandler {
-    abort_handle: AbortHandle,
-    abort_registration: Option<AbortRegistration>,
-    join_handle: Option<JoinHandle<()>>,
-    keepalive: TcpKeepalive,
-    tls: Option<Arc<ServerConfig>>,
+    inner: Box<mysql_server::MySQLHandler>,
 }
 
 impl MySQLHandler {
@@ -50,69 +37,27 @@ impl MySQLHandler {
         tcp_keepalive_timeout_secs: u64,
         tls_config: MySQLTlsConfig,
     ) -> Result<Box<dyn Server>> {
-        let (abort_handle, registration) = AbortHandle::new_pair();
-        let keepalive = TcpKeepalive::new()
-            .with_time(std::time::Duration::from_secs(tcp_keepalive_timeout_secs));
-        let tls = tls_config.setup()?.map(Arc::new);
+        let socket_handler: MySQLSocketHandler = Arc::new(
+            |socket: TcpStream, keepalive: TcpKeepalive, tls, executor: Arc<Runtime>| {
+                let session_manager = SessionManager::instance();
+                executor.spawn(async move {
+                    if let Err(error) =
+                        MySQLConnection::run_on_stream(session_manager, socket, keepalive, tls)
+                            .await
+                    {
+                        error!("Unexpected error occurred during query: {:?}", error);
+                    }
+                });
+            },
+        );
 
         Ok(Box::new(MySQLHandler {
-            abort_handle,
-            abort_registration: Some(registration),
-            join_handle: None,
-            keepalive,
-            tls,
+            inner: mysql_server::MySQLHandler::create(
+                tcp_keepalive_timeout_secs,
+                tls_config,
+                socket_handler,
+            )?,
         }))
-    }
-
-    #[async_backtrace::framed]
-    async fn listener_tcp(listening: SocketAddr) -> Result<(TcpListenerStream, SocketAddr)> {
-        let listener = tokio::net::TcpListener::bind(listening)
-            .await
-            .map_err(|e| {
-                ErrorCode::TokioError(format!("{{{}:{}}} {}", listening.ip(), listening.port(), e))
-            })?;
-        let listener_addr = listener.local_addr()?;
-        Ok((TcpListenerStream::new(listener), listener_addr))
-    }
-
-    fn listen_loop(
-        &self,
-        stream: ListeningStream,
-        rt: Arc<Runtime>,
-    ) -> impl Future<Output = ()> + use<> {
-        let keepalive = self.keepalive.clone();
-        let tls = self.tls.clone();
-
-        stream.for_each(move |accept_socket| {
-            let tls = tls.clone();
-            let keepalive = keepalive.clone();
-            let executor = rt.clone();
-            let sessions = SessionManager::instance();
-            async move {
-                match accept_socket {
-                    Err(error) => error!("Broken session connection: {}", error),
-                    Ok(socket) => {
-                        MySQLHandler::accept_socket(sessions, executor, socket, keepalive, tls)
-                    }
-                };
-            }
-        })
-    }
-
-    fn accept_socket(
-        session_manager: Arc<SessionManager>,
-        executor: Arc<Runtime>,
-        socket: TcpStream,
-        keepalive: TcpKeepalive,
-        tls: Option<Arc<ServerConfig>>,
-    ) {
-        executor.spawn(async move {
-            if let Err(error) =
-                MySQLConnection::run_on_stream(session_manager, socket, keepalive, tls).await
-            {
-                error!("Unexpected error occurred during query: {:?}", error);
-            }
-        });
     }
 }
 
@@ -120,38 +65,11 @@ impl MySQLHandler {
 impl Server for MySQLHandler {
     #[async_backtrace::framed]
     async fn shutdown(&mut self, graceful: bool) {
-        if !graceful {
-            return;
-        }
-
-        self.abort_handle.abort();
-
-        if let Some(join_handle) = self.join_handle.take() {
-            if let Err(error) = join_handle.await {
-                error!(
-                    "Unexpected error during shutdown MySQLHandler. cause {}",
-                    error
-                );
-            }
-        }
+        self.inner.shutdown(graceful).await
     }
 
     #[async_backtrace::framed]
     async fn start(&mut self, listening: SocketAddr) -> Result<SocketAddr> {
-        match self.abort_registration.take() {
-            None => Err(ErrorCode::Internal("MySQLHandler already running.")),
-            Some(registration) => {
-                let rejected_rt = Arc::new(Runtime::with_worker_threads(
-                    1,
-                    Some("mysql-handler".to_string()),
-                )?);
-                let (stream, listener) = Self::listener_tcp(listening).await?;
-                let stream = Abortable::new(stream, registration);
-                self.join_handle = Some(databend_common_base::runtime::spawn(
-                    self.listen_loop(stream, rejected_rt),
-                ));
-                Ok(listener)
-            }
-        }
+        self.inner.start(listening).await
     }
 }

@@ -37,3 +37,5 @@ Recent notes:
   `databend-query-admin-server` extraction experiment.
 - `internal/query_hot_compile_http_handler_server.md`: hot compile benchmark
   for the `databend-query-http-handler-server` extraction experiment.
+- `internal/query_hot_compile_mysql_server.md`: hot compile benchmark for the
+  `databend-query-mysql-server` extraction experiment.

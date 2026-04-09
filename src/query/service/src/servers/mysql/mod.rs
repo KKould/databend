@@ -15,11 +15,10 @@
 mod mysql_handler;
 mod mysql_interactive_worker;
 mod mysql_session;
-mod tls;
 mod writers;
 
 pub use self::mysql_handler::MySQLHandler;
 pub use self::mysql_session::MySQLConnection;
-pub use self::tls::MySQLTlsConfig;
+pub use databend_query_mysql_server::MySQLTlsConfig;
 
 const MYSQL_VERSION: &str = "8.0.90";

@@ -1,0 +1,26 @@
+[package]
+name = "databend-query-mysql-server"
+version = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+async-backtrace = { workspace = true }
+async-trait = { workspace = true }
+databend-common-base = { workspace = true }
+databend-common-exception = { workspace = true }
+databend-query-server-api = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
+log = { workspace = true }
+rustls = { workspace = true }
+rustls-pemfile = { workspace = true }
+rustls-pki-types = { workspace = true }
+socket2 = { workspace = true }
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+
+[lints]
+workspace = true

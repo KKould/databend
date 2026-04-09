@@ -110,6 +110,7 @@ databend-query-admin-server = { path = "src/query/service/admin-server" }
 databend-query-federated = { path = "src/query/service/federated" }
 databend-query-http-handler-server = { path = "src/query/service/http-handler-server" }
 databend-query-metrics-server = { path = "src/query/service/metrics-server" }
+databend-query-mysql-server = { path = "src/query/service/mysql-server" }
 databend-query-server-api = { path = "src/query/service/server-api" }
 databend-common-sqlsmith = { path = "src/tests/sqlsmith" }
 databend-common-statistics = { path = "src/common/statistics" }
