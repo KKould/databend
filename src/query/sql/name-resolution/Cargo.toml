@@ -1,0 +1,18 @@
+[package]
+name = "databend-common-sql-name-resolution"
+version = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+databend-common-ast = { workspace = true }
+databend-common-catalog = { workspace = true }
+databend-common-exception = { workspace = true }
+databend-common-expression = { workspace = true }
+databend-common-settings = { workspace = true }
+derive-visitor = { workspace = true }
+
+[lints]
+workspace = true

@@ -20,8 +20,8 @@ mod tests {
     use databend_common_ast::parser::parse_sql;
     use databend_common_ast::parser::tokenize_sql;
 
-    use crate::planner::semantic::name_resolution::NameResolutionContext;
-    use crate::planner::semantic::name_resolution::normalize_identifier;
+    use crate::planner::semantic::NameResolutionContext;
+    use crate::planner::semantic::normalize_identifier;
 
     #[test]
     fn test_sql_to_ast_to_sql_quoted_identifiers() -> anyhow::Result<()> {

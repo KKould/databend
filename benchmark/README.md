@@ -26,3 +26,5 @@ Recent notes:
 
 - `internal/query_hot_compile_sql_plans.md`: hot compile benchmark for the first
   `databend-common-sql-plans` extraction experiment.
+- `internal/query_hot_compile_name_resolution.md`: hot compile benchmark for the
+  `databend-common-sql-name-resolution` extraction experiment.
