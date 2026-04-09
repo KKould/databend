@@ -14,7 +14,7 @@
 
 // The servers module used for external communication with user, such as MySQL wired protocol, etc.
 
-pub use server::Server;
+pub use databend_query_server_api::Server;
 pub use server::ShutdownHandle;
 
 pub use self::flight_sql::FlightSQLServer;

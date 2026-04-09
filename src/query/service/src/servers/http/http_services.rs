@@ -34,8 +34,9 @@ use poem::middleware::CookieJarManager;
 use poem::middleware::NormalizePath;
 use poem::middleware::TrailingSlash;
 
+use databend_query_server_api::Server;
+
 use super::v1::HttpQueryContext;
-use crate::servers::Server;
 use crate::servers::http::middleware::EndpointKind;
 use crate::servers::http::middleware::HTTPSessionMiddleware;
 use crate::servers::http::middleware::PanicHandler;

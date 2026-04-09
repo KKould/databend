@@ -30,10 +30,11 @@ use tokio::net::TcpStream;
 use tokio::task::JoinHandle;
 use tokio_stream::wrappers::TcpListenerStream;
 
+use databend_query_server_api::ListeningStream;
+use databend_query_server_api::Server;
+
 use crate::servers::mysql::mysql_session::MySQLConnection;
 use crate::servers::mysql::tls::MySQLTlsConfig;
-use crate::servers::server::ListeningStream;
-use crate::servers::server::Server;
 use crate::sessions::SessionManager;
 
 pub struct MySQLHandler {

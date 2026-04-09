@@ -19,9 +19,8 @@ use databend_common_base::runtime::metrics::GLOBAL_METRICS_REGISTRY;
 use databend_common_exception::ErrorCode;
 use databend_common_http::HttpError;
 use databend_common_http::HttpShutdownHandler;
+use databend_query_server_api::Server;
 use poem::IntoResponse;
-
-use crate::servers::Server;
 
 pub struct MetricService {
     shutdown_handler: HttpShutdownHandler,
@@ -37,7 +36,6 @@ pub async fn metrics_handler() -> impl IntoResponse {
 }
 
 impl MetricService {
-    // TODO add session tls handler
     pub fn create() -> Box<MetricService> {
         Box::new(MetricService {
             shutdown_handler: HttpShutdownHandler::create("metric api".to_string()),

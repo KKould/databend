@@ -1,0 +1,16 @@
+[package]
+name = "databend-query-server-api"
+version = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+publish = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+async-trait = { workspace = true }
+databend-common-exception = { workspace = true }
+futures = { workspace = true }
+tokio-stream = { workspace = true }
+
+[lints]
+workspace = true

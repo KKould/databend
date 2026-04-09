@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -25,22 +24,13 @@ use databend_common_base::base::signal_stream;
 use databend_common_base::runtime::drop_guard;
 use databend_common_config::GlobalConfig;
 use databend_common_exception::Result;
+use databend_query_server_api::Server;
 use futures::StreamExt;
-use futures::stream::Abortable;
 use log::error;
 use log::info;
-use tokio_stream::wrappers::TcpListenerStream;
 
 use crate::clusters::ClusterDiscovery;
 use crate::sessions::SessionManager;
-
-pub type ListeningStream = Abortable<TcpListenerStream>;
-
-#[async_trait::async_trait]
-pub trait Server: Send {
-    async fn shutdown(&mut self, graceful: bool);
-    async fn start(&mut self, listening: SocketAddr) -> Result<SocketAddr>;
-}
 
 pub struct ShutdownHandle {
     shutdown: Arc<AtomicBool>,

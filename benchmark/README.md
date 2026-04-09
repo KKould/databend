@@ -28,3 +28,6 @@ Recent notes:
   `databend-common-sql-plans` extraction experiment.
 - `internal/query_hot_compile_name_resolution.md`: hot compile benchmark for the
   `databend-common-sql-name-resolution` extraction experiment.
+- `internal/query_hot_compile_service_server_split.md`: hot compile benchmark
+  for the `databend-query-server-api` and `databend-query-metrics-server`
+  extraction experiment.
