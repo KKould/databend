@@ -24,6 +24,8 @@ These tests may be conducted to ensure the system performs well when handling in
 
 Recent notes:
 
+- `internal/query_hot_compile_summary.md`: summary of all crate split hot
+  compile experiments and retention recommendations.
 - `internal/query_hot_compile_sql_plans.md`: hot compile benchmark for the first
   `databend-common-sql-plans` extraction experiment.
 - `internal/query_hot_compile_name_resolution.md`: hot compile benchmark for the
