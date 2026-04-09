@@ -13,43 +13,36 @@
 // limitations under the License.
 
 use std::net::SocketAddr;
-use std::time::Duration;
 
 use databend_common_config::InnerConfig;
 use databend_common_exception::ErrorCode;
-use databend_common_http::HttpError;
-use databend_common_http::HttpShutdownHandler;
 use databend_common_http::health_handler;
 use databend_common_http::home::debug_home_handler;
 #[cfg(feature = "memory-profiling")]
 use databend_common_http::jeprof::debug_jeprof_dump_handler;
 use databend_common_http::pprof::debug_pprof_handler;
 use databend_common_http::stack::debug_dump_stack;
-use databend_meta_client::types::anyerror::AnyError;
-use log::info;
-use log::warn;
-use poem::Endpoint;
+use poem::EndpointExt;
 use poem::Route;
+use poem::endpoint::BoxEndpoint;
 use poem::get;
-use poem::listener::OpensslTlsConfig;
 use poem::post;
 
+use databend_query_admin_server as admin_server;
 use databend_query_server_api::Server;
 
 pub struct AdminService {
-    config: InnerConfig,
-    shutdown_handler: HttpShutdownHandler,
+    inner: Box<admin_server::AdminService>,
 }
 
 impl AdminService {
     pub fn create(config: &InnerConfig) -> Box<AdminService> {
         Box::new(AdminService {
-            config: config.clone(),
-            shutdown_handler: HttpShutdownHandler::create("http api".to_string()),
+            inner: admin_server::AdminService::create(config.clone(), Self::build_router(config)),
         })
     }
 
-    fn build_router(&self) -> impl Endpoint + use<> {
+    fn build_router(config: &InnerConfig) -> BoxEndpoint<'static> {
         #[cfg_attr(not(feature = "memory-profiling"), allow(unused_mut))]
         let mut route = Route::new()
             .at("/v1/health", get(health_handler))
@@ -84,7 +77,7 @@ impl AdminService {
             .at("/debug/async_tasks/dump", get(debug_dump_stack));
 
         // Multiple tenants admin api
-        if self.config.query.common.management_mode {
+        if config.query.common.management_mode {
             route = route
                 .at(
                     "/v1/tenants/:tenant/tables",
@@ -142,84 +135,19 @@ impl AdminService {
             );
         };
 
-        route
-    }
-
-    fn build_tls(config: &InnerConfig) -> Result<OpensslTlsConfig, std::io::Error> {
-        let cfg = OpensslTlsConfig::new()
-            .cert_from_file(config.query.common.api_tls_server_cert.as_str())
-            .key_from_file(config.query.common.api_tls_server_key.as_str());
-
-        // if Path::new(&config.query.api_tls_server_root_ca_cert).exists() {
-        //     cfg = cfg.client_auth_required(std::fs::read(
-        //         config.query.api_tls_server_root_ca_cert.as_str(),
-        //     )?);
-        // }
-        Ok(cfg)
-    }
-
-    #[async_backtrace::framed]
-    async fn start_with_tls(&mut self, listening: SocketAddr) -> Result<SocketAddr, HttpError> {
-        info!("Http API TLS enabled");
-
-        let tls_config = Self::build_tls(&self.config)
-            .map_err(|e| HttpError::TlsConfigError(AnyError::new(&e)))?;
-
-        let addr = self
-            .shutdown_handler
-            .start_service(
-                listening,
-                Some(tls_config),
-                self.build_router(),
-                Some(Duration::from_millis(1000)),
-            )
-            .await?;
-        Ok(addr)
-    }
-
-    #[async_backtrace::framed]
-    async fn start_without_tls(&mut self, listening: SocketAddr) -> Result<SocketAddr, HttpError> {
-        warn!("Http API TLS not set");
-
-        let addr = self
-            .shutdown_handler
-            .start_service(
-                listening,
-                None,
-                self.build_router(),
-                Some(Duration::from_millis(1000)),
-            )
-            .await?;
-        Ok(addr)
+        route.boxed()
     }
 }
 
 #[async_trait::async_trait]
 impl Server for AdminService {
     #[async_backtrace::framed]
-    async fn shutdown(&mut self, _graceful: bool) {
-        // intendfully do nothing: sometimes we hope to diagnose the backtraces or metrics after
-        // the process got the sigterm signal, we can still leave the admin service port open until
-        // the process exited. it's not an user facing service, it's allowed to force shutdown.
+    async fn shutdown(&mut self, graceful: bool) {
+        self.inner.shutdown(graceful).await
     }
 
     #[async_backtrace::framed]
     async fn start(&mut self, listening: SocketAddr) -> Result<SocketAddr, ErrorCode> {
-        let config = &self.config.query.common;
-        let res =
-            match config.api_tls_server_key.is_empty() || config.api_tls_server_cert.is_empty() {
-                true => self.start_without_tls(listening).await,
-                false => self.start_with_tls(listening).await,
-            };
-
-        res.map_err(|e: HttpError| match e {
-            HttpError::BadAddressFormat(any_err) => {
-                ErrorCode::BadAddressFormat(any_err.to_string())
-            }
-            le @ HttpError::ListenError { .. } => ErrorCode::CannotListenerPort(le.to_string()),
-            HttpError::TlsConfigError(any_err) => {
-                ErrorCode::TLSConfigurationFailure(any_err.to_string())
-            }
-        })
+        self.inner.start(listening).await
     }
 }
