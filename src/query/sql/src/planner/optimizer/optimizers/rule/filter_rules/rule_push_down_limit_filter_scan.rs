@@ -64,7 +64,7 @@ impl Rule for RulePushDownLimitFilterScan {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let limit: Limit = s_expr.plan().clone().try_into()?;
+        let limit: Limit = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let limit_child = s_expr.child(0)?;
 
         let (eval_scalar_expr, filter_expr) = match limit_child.plan() {
@@ -75,7 +75,7 @@ impl Rule for RulePushDownLimitFilterScan {
             _ => unreachable!(),
         };
 
-        let filter: Filter = filter_expr.plan().clone().try_into()?;
+        let filter: Filter = crate::plans::try_from_rel_operator(filter_expr.plan().clone())?;
         let scan_expr = filter_expr.child(0)?;
         let mut scan: Scan = scan_expr.plan().clone().try_into()?;
 

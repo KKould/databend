@@ -49,6 +49,7 @@ use crate::plans::HashJoinBuildCacheInfo;
 use crate::plans::Join;
 use crate::plans::JoinEquiCondition;
 use crate::plans::JoinType;
+use crate::plans::RelOperator;
 use crate::plans::ScalarExpr;
 use crate::plans::ScalarItem;
 use crate::plans::Visitor;
@@ -478,7 +479,7 @@ impl Binder {
             self.rewrite_asof(logical_join, left_child, (right_child, right_context))
         } else {
             Ok(SExpr::create_binary(
-                Arc::new(logical_join.into()),
+                Arc::new(RelOperator::Join(logical_join)),
                 Arc::new(left_child),
                 Arc::new(right_child),
             ))

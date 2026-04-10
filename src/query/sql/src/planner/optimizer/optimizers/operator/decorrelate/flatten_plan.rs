@@ -46,6 +46,7 @@ use crate::plans::ExpressionScan;
 use crate::plans::Filter;
 use crate::plans::FunctionCall;
 use crate::plans::Join;
+use crate::plans::JoinExt;
 use crate::plans::JoinEquiCondition;
 use crate::plans::Limit;
 use crate::plans::Operator;
@@ -58,6 +59,7 @@ use crate::plans::Scan;
 use crate::plans::Sequence;
 use crate::plans::Sort;
 use crate::plans::SortItem;
+use crate::plans::SortExt;
 use crate::plans::UnionAll;
 use crate::plans::Window;
 use crate::plans::WindowFuncFrame;
@@ -234,7 +236,7 @@ impl SubqueryDecorrelatorOptimizer {
         }
 
         Ok(SExpr::create_unary(
-            Arc::new(EvalScalar { items }.into()),
+            Arc::new(RelOperator::EvalScalar(EvalScalar { items })),
             Arc::new(flatten_plan),
         ))
     }
@@ -284,12 +286,9 @@ impl SubqueryDecorrelatorOptimizer {
         Ok(SExpr::create_unary(
             Arc::new(ProjectSet { srfs }.into()),
             Arc::new(SExpr::create_unary(
-                Arc::new(
-                    EvalScalar {
-                        items: scalar_items,
-                    }
-                    .into(),
-                ),
+                Arc::new(RelOperator::EvalScalar(EvalScalar {
+                    items: scalar_items,
+                })),
                 Arc::new(flatten_plan),
             )),
         ))
@@ -323,7 +322,7 @@ impl SubqueryDecorrelatorOptimizer {
             predicates.push(self.flatten_scalar(predicate, correlated_columns)?);
         }
 
-        let filter_plan = Filter { predicates }.into();
+        let filter_plan = RelOperator::Filter(Filter { predicates });
         Ok(SExpr::create_unary(
             Arc::new(filter_plan),
             Arc::new(flatten_plan),
@@ -780,7 +779,7 @@ impl SubqueryDecorrelatorOptimizer {
         }
 
         Ok(SExpr::create_unary(
-            Arc::new(Filter { predicates }.into()),
+            Arc::new(RelOperator::Filter(Filter { predicates })),
             Arc::new(SExpr::create_unary(
                 Arc::new(window_plan.into()),
                 Arc::new(window_child),
@@ -1012,7 +1011,7 @@ impl SubqueryDecorrelatorOptimizer {
             RelOperator::UnionAll(union_all) => self.clone_outer_union_all(union_all)?,
             RelOperator::Sequence(sequence) => self.clone_outer_sequence(sequence),
             RelOperator::EvalScalar(eval) => self.clone_outer_eval_scalar(eval)?,
-            RelOperator::Limit(limit) => limit.clone().into(),
+            RelOperator::Limit(limit) => RelOperator::Limit(limit.clone()),
             RelOperator::Sort(sort) => {
                 let mut sort = sort.clone();
                 for old in sort.used_columns() {
@@ -1043,7 +1042,7 @@ impl SubqueryDecorrelatorOptimizer {
                     self.derived_columns.insert(*mark, new_mark);
                     *mark = new_mark;
                 }
-                join.into()
+                RelOperator::Join(join)
             }
             RelOperator::Aggregate(aggregate) => {
                 let mut aggregate = aggregate.clone();
@@ -1211,7 +1210,7 @@ impl SubqueryDecorrelatorOptimizer {
             .iter()
             .map(|item| self.clone_outer_scalar_item(item, &mut metadata))
             .collect::<Result<_>>()?;
-        Ok(EvalScalar { items }.into())
+        Ok(RelOperator::EvalScalar(EvalScalar { items }))
     }
 
     fn clone_outer_scalar_item(

@@ -4415,9 +4415,23 @@ dependencies = [
  "chrono",
  "databend-common-ast",
  "databend-common-catalog",
+ "databend-common-exception",
  "databend-common-expression",
  "databend-common-meta-app",
+ "databend-common-metrics",
+ "databend-common-pipeline",
+ "databend-common-storage",
+ "databend-meta-client 260205.4.0",
+ "databend-storages-common-stage",
+ "databend-storages-common-table-meta",
+ "databend_educe",
+ "enum-as-inner",
+ "log",
+ "opendal",
+ "parking_lot 0.12.3",
+ "recursive",
  "serde",
+ "tokio",
 ]
 
 [[package]]

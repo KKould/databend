@@ -71,7 +71,7 @@ impl Rule for RuleEliminateUnion {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let union: UnionAll = s_expr.plan().clone().try_into()?;
+        let union: UnionAll = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
 
         // Need to check that union's output indexes are the same as left child's output indexes
         // currently this is always !false now, so the following codes are not necessary

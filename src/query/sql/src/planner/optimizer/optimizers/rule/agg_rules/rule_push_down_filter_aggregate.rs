@@ -23,6 +23,7 @@ use crate::optimizer::optimizers::rule::TransformResult;
 use crate::plans::Aggregate;
 use crate::plans::Filter;
 use crate::plans::RelOp;
+use crate::plans::RelOperator;
 
 /// Input:   Filter
 ///           \
@@ -76,7 +77,7 @@ impl Rule for RulePushDownFilterAggregate {
         s_expr: &SExpr,
         state: &mut TransformResult,
     ) -> databend_common_exception::Result<()> {
-        let filter: Filter = s_expr.plan().clone().try_into()?;
+        let filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let aggregate_expr = s_expr.child(0)?;
         let aggregate: Aggregate = aggregate_expr.plan().clone().try_into()?;
         let aggregate_child_prop =
@@ -120,7 +121,7 @@ impl Rule for RulePushDownFilterAggregate {
 
             let mut result = if remaining_predicates.is_empty() {
                 SExpr::create_unary(
-                    Arc::new(aggregate.into()),
+                    Arc::new(RelOperator::Aggregate(aggregate)),
                     Arc::new(SExpr::create_unary(
                         Arc::new(pushed_down_filter.into()),
                         Arc::new(aggregate_expr.child(0)?.clone()),
@@ -133,7 +134,7 @@ impl Rule for RulePushDownFilterAggregate {
                 SExpr::create_unary(
                     Arc::new(remaining_filter.into()),
                     Arc::new(SExpr::create_unary(
-                        Arc::new(aggregate.into()),
+                        Arc::new(RelOperator::Aggregate(aggregate)),
                         Arc::new(SExpr::create_unary(
                             Arc::new(pushed_down_filter.into()),
                             Arc::new(aggregate_expr.child(0)?.clone()),

@@ -25,6 +25,10 @@ use crate::optimizer::ir::SExpr;
 use crate::plans::CreateTablePlan;
 use crate::plans::Plan;
 
+pub trait PlanFormatIndent {
+    fn format_indent(&self, options: FormatOptions) -> Result<String>;
+}
+
 impl SExpr {
     pub(crate) fn to_format_tree<I: IdHumanizer>(
         &self,
@@ -36,8 +40,8 @@ impl SExpr {
     }
 }
 
-impl Plan {
-    pub fn format_indent(&self, options: FormatOptions) -> Result<String> {
+impl PlanFormatIndent for Plan {
+    fn format_indent(&self, options: FormatOptions) -> Result<String> {
         match self {
             Plan::Query {
                 s_expr, metadata, ..

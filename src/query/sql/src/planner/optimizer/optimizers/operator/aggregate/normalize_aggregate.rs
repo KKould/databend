@@ -183,7 +183,7 @@ impl RuleNormalizeAggregateOptimizer {
         };
 
         let mut new_aggregate = SExpr::create_unary(
-            Arc::new(new_aggregate.into()),
+            Arc::new(RelOperator::Aggregate(new_aggregate)),
             Arc::new(s_expr.child(0)?.clone()),
         );
 
@@ -314,9 +314,9 @@ impl RuleNormalizeAggregateOptimizer {
         };
 
         Ok(Some(SExpr::create_unary(
-            Arc::new(outer_aggregate.into()),
+            Arc::new(RelOperator::Aggregate(outer_aggregate)),
             Arc::new(SExpr::create_unary(
-                Arc::new(inner_aggregate.into()),
+                Arc::new(RelOperator::Aggregate(inner_aggregate)),
                 Arc::new(s_expr.child(0)?.clone()),
             )),
         )))

@@ -20,7 +20,7 @@ use databend_common_expression::TableSchemaRef;
 use databend_common_meta_app::schema::CreateOption;
 use databend_common_meta_app::tenant::Tenant;
 
-use crate::plans::TableOptions;
+use crate::ddl::TableOptions;
 
 #[derive(Clone, Debug)]
 pub struct CreateDynamicTablePlan {

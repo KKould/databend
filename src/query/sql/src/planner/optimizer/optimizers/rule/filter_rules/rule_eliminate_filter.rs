@@ -61,7 +61,7 @@ impl Rule for RuleEliminateFilter {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let eval_scalar: Filter = s_expr.plan().clone().try_into()?;
+        let eval_scalar: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         // First, de-duplication predicates.
         let origin_predicates = eval_scalar.predicates.clone();
         let predicates = origin_predicates
@@ -139,7 +139,7 @@ impl Rule for RuleEliminateFilter {
             state.add_result(
                 s_expr
                     .unary_child_arc()
-                    .ref_build_unary(Filter { predicates }),
+                    .ref_build_unary(Arc::new(RelOperator::Filter(Filter { predicates }))),
             );
         }
         Ok(())

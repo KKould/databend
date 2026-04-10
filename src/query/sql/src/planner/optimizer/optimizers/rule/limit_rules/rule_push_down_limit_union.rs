@@ -57,9 +57,10 @@ impl Rule for RulePushDownLimitUnion {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let limit: Limit = s_expr.plan().clone().try_into()?;
+        let limit: Limit = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let union_s_expr = s_expr.child(0)?;
-        let union: UnionAll = union_s_expr.plan().clone().try_into()?;
+        let union: UnionAll =
+            crate::plans::try_from_rel_operator(union_s_expr.plan().clone())?;
 
         if limit.limit.is_none() {
             return Ok(());

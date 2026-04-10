@@ -30,7 +30,6 @@ use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
 use databend_common_expression::AutoIncrementExpr;
 use databend_common_expression::FunctionKind;
-use databend_common_expression::RemoteExpr;
 use databend_common_expression::SEARCH_MATCHED_COL_NAME;
 use databend_common_expression::SEARCH_SCORE_COL_NAME;
 use databend_common_expression::Scalar;
@@ -47,11 +46,11 @@ use databend_common_meta_app::schema::GetSequenceNextValueReq;
 use databend_common_meta_app::schema::SequenceIdent;
 use databend_common_meta_app::tenant::Tenant;
 use databend_common_users::GrantObjectVisibilityChecker;
+use databend_common_sql_plans::PlanScalarExpr;
 use educe::Educe;
 use enum_as_inner::EnumAsInner;
 use itertools::Itertools;
 
-use super::WindowFuncFrame;
 use super::WindowFuncType;
 use crate::ColumnSet;
 use crate::IndexType;
@@ -102,6 +101,12 @@ impl Clone for ScalarExpr {
 }
 
 impl Eq for ScalarExpr {}
+
+impl PlanScalarExpr for ScalarExpr {
+    fn used_columns(&self) -> ColumnSet {
+        ScalarExpr::used_columns(self)
+    }
+}
 
 impl PartialEq for ScalarExpr {
     #[recursive::recursive]
@@ -925,18 +930,15 @@ impl<'a> TryFrom<&'a BinaryOperator> for SubqueryComparisonOp {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct AggregateFunctionScalarSortDesc {
-    pub expr: ScalarExpr,
-    pub is_reuse_index: bool,
-    pub nulls_first: bool,
-    pub asc: bool,
+pub type AggregateFunctionScalarSortDesc =
+    databend_common_sql_plans::GenericAggregateFunctionScalarSortDesc<ScalarExpr>;
+
+pub trait AggregateFunctionScalarSortDescExt {
+    fn try_into_sort_desc(&self) -> Result<AggregateFunctionSortDesc>;
 }
 
-impl TryInto<AggregateFunctionSortDesc> for &AggregateFunctionScalarSortDesc {
-    type Error = ErrorCode;
-
-    fn try_into(self) -> std::result::Result<AggregateFunctionSortDesc, Self::Error> {
+impl AggregateFunctionScalarSortDescExt for AggregateFunctionScalarSortDesc {
+    fn try_into_sort_desc(&self) -> Result<AggregateFunctionSortDesc> {
         let expr = &self.expr;
         let ScalarExpr::BoundColumnRef(col) = expr else {
             return Err(ErrorCode::Internal(
@@ -954,116 +956,17 @@ impl TryInto<AggregateFunctionSortDesc> for &AggregateFunctionScalarSortDesc {
     }
 }
 
-#[derive(Clone, Debug, Educe)]
-#[educe(PartialEq, Eq, Hash)]
-pub struct AggregateFunction {
-    #[educe(PartialEq(ignore), Hash(ignore))]
-    pub span: Span,
-    pub func_name: String,
-    pub distinct: bool,
-    pub params: Vec<Scalar>,
-    pub args: Vec<ScalarExpr>,
-    pub return_type: Box<DataType>,
-    pub sort_descs: Vec<AggregateFunctionScalarSortDesc>,
+pub type AggregateFunction = databend_common_sql_plans::GenericAggregateFunction<ScalarExpr>;
 
-    pub display_name: String,
-}
+pub type LagLeadFunction = databend_common_sql_plans::GenericLagLeadFunction<ScalarExpr>;
+pub type NthValueFunction = databend_common_sql_plans::GenericNthValueFunction<ScalarExpr>;
+pub type NtileFunction = databend_common_sql_plans::GenericNtileFunction;
+pub type WindowFunc = databend_common_sql_plans::GenericWindowFunc<WindowFuncType, ScalarExpr>;
+pub type WindowOrderBy = databend_common_sql_plans::GenericWindowOrderBy<ScalarExpr>;
 
-impl AggregateFunction {
-    pub fn exprs(&self) -> impl Iterator<Item = &ScalarExpr> {
-        self.args
-            .iter()
-            .chain(self.sort_descs.iter().map(|desc| &desc.expr))
-    }
-
-    pub fn exprs_mut(&mut self) -> impl Iterator<Item = &mut ScalarExpr> {
-        self.args
-            .iter_mut()
-            .chain(self.sort_descs.iter_mut().map(|desc| &mut desc.expr))
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct LagLeadFunction {
-    /// Is `lag` or `lead`.
-    pub is_lag: bool,
-    pub arg: Box<ScalarExpr>,
-    pub offset: u64,
-    pub default: Option<Box<ScalarExpr>>,
-    pub return_type: Box<DataType>,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct NthValueFunction {
-    /// The nth row of the window frame (counting from 1).
-    ///
-    /// - Some(1): `first_value`
-    /// - Some(n): `nth_value`
-    /// - None: `last_value`
-    pub n: Option<u64>,
-    pub arg: Box<ScalarExpr>,
-    pub return_type: Box<DataType>,
-    pub ignore_null: bool,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct NtileFunction {
-    pub n: u64,
-    pub return_type: Box<DataType>,
-}
-
-#[derive(Clone, Debug, Educe)]
-#[educe(PartialEq, Eq, Hash)]
-pub struct WindowFunc {
-    #[educe(PartialEq(ignore), Hash(ignore))]
-    pub span: Span,
-    pub display_name: String,
-    pub partition_by: Vec<ScalarExpr>,
-    pub func: WindowFuncType,
-    pub order_by: Vec<WindowOrderBy>,
-    pub frame: WindowFuncFrame,
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct WindowOrderBy {
-    pub expr: ScalarExpr,
-    // Optional `ASC` or `DESC`
-    pub asc: Option<bool>,
-    // Optional `NULLS FIRST` or `NULLS LAST`
-    pub nulls_first: Option<bool>,
-}
-
-#[derive(Clone, Debug, Educe)]
-#[educe(PartialEq, Eq, Hash)]
-pub struct LambdaFunc {
-    #[educe(PartialEq(ignore), Hash(ignore))]
-    pub span: Span,
-    pub func_name: String,
-    pub args: Vec<ScalarExpr>,
-    pub lambda_expr: Box<RemoteExpr>,
-    pub lambda_display: String,
-    pub return_type: Box<DataType>,
-}
-
-#[derive(Clone, Debug, Educe)]
-#[educe(PartialEq, Eq, Hash)]
-pub struct FunctionCall {
-    #[educe(Hash(ignore), PartialEq(ignore))]
-    pub span: Span,
-    pub func_name: String,
-    pub params: Vec<Scalar>,
-    pub arguments: Vec<ScalarExpr>,
-}
-
-#[derive(Clone, Debug, Educe)]
-#[educe(PartialEq, Eq, Hash)]
-pub struct CastExpr {
-    #[educe(Hash(ignore), PartialEq(ignore))]
-    pub span: Span,
-    pub is_try: bool,
-    pub argument: Box<ScalarExpr>,
-    pub target_type: Box<DataType>,
-}
+pub type LambdaFunc = databend_common_sql_plans::GenericLambdaFunc<ScalarExpr>;
+pub type FunctionCall = databend_common_sql_plans::GenericFunctionCall<ScalarExpr>;
+pub type CastExpr = databend_common_sql_plans::GenericCastExpr<ScalarExpr>;
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum SubqueryType {

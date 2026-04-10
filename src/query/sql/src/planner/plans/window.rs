@@ -12,28 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::sync::Arc;
 
-use databend_common_ast::Span;
 use databend_common_catalog::table_context::TableContext;
-use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
-use databend_common_expression::Scalar;
 use databend_common_expression::types::DataType;
-use databend_common_expression::types::NumberDataType;
-use educe::Educe;
-use enum_as_inner::EnumAsInner;
-use serde::Deserialize;
-use serde::Serialize;
 
 use super::AggregateFunction;
 use super::NthValueFunction;
 use crate::ColumnSet;
 use crate::ScalarExpr;
-use crate::Symbol;
-use crate::binder::WindowOrderByInfo;
 use crate::optimizer::ir::Distribution;
 use crate::optimizer::ir::RelExpr;
 use crate::optimizer::ir::RelationalProperty;
@@ -43,70 +31,34 @@ use crate::plans::LagLeadFunction;
 use crate::plans::NtileFunction;
 use crate::plans::Operator;
 use crate::plans::RelOp;
-use crate::plans::ScalarItem;
+pub type Window = databend_common_sql_plans::GenericWindow<WindowFuncType, ScalarExpr>;
+pub use databend_common_sql_plans::WindowFuncFrame;
+pub use databend_common_sql_plans::WindowFuncFrameBound;
+pub use databend_common_sql_plans::WindowFuncFrameUnits;
+pub type WindowFuncType = databend_common_sql_plans::GenericWindowFuncType<
+    AggregateFunction,
+    LagLeadFunction,
+    NthValueFunction,
+    NtileFunction,
+>;
 
-#[derive(Clone, Debug, Educe)]
-#[educe(PartialEq, Eq, Hash)]
-pub struct Window {
-    #[educe(PartialEq(ignore), Hash(ignore))]
-    pub span: Span,
-
-    // aggregate scalar expressions, such as: sum(col1), count(*);
-    // or general window functions, such as: row_number(), rank();
-    pub index: Symbol,
-    pub function: WindowFuncType,
-    pub arguments: Vec<ScalarItem>,
-
-    // partition by scalar expressions
-    pub partition_by: Vec<ScalarItem>,
-    // order by
-    pub order_by: Vec<WindowOrderByInfo>,
-    // window frames
-    pub frame: WindowFuncFrame,
-    // limit for potentially possible push-down
-    pub limit: Option<usize>,
+pub trait WindowFuncTypeExt {
+    fn func_name(&self) -> String;
+    fn used_columns(&self) -> ColumnSet;
+    fn return_type(&self) -> DataType;
 }
 
-impl Window {
-    pub fn used_columns(&self) -> Result<ColumnSet> {
-        let mut used_columns = ColumnSet::new();
-
-        used_columns.insert(self.index);
-        used_columns.extend(self.function.used_columns());
-        used_columns.extend(self.arguments_columns()?);
-        used_columns.extend(self.partition_by_columns()?);
-        used_columns.extend(self.order_by_columns()?);
-
-        Ok(used_columns)
+impl WindowFuncTypeExt for WindowFuncType {
+    fn func_name(&self) -> String {
+        <Self as databend_common_sql_plans::PlanWindowFunction<ScalarExpr>>::func_name(self)
     }
 
-    pub fn arguments_columns(&self) -> Result<ColumnSet> {
-        let mut col_set = ColumnSet::new();
-        for arg in self.arguments.iter() {
-            col_set.insert(arg.index);
-            col_set.extend(arg.scalar.used_columns())
-        }
-        Ok(col_set)
+    fn used_columns(&self) -> ColumnSet {
+        <Self as databend_common_sql_plans::PlanWindowFunction<ScalarExpr>>::used_columns(self)
     }
 
-    // `Window.partition_by_columns` used in `RulePushDownFilterWindow` only consider `partition_by` field,
-    // like `Aggregate.group_columns` only consider `group_items` field.
-    pub fn partition_by_columns(&self) -> Result<ColumnSet> {
-        let mut col_set = ColumnSet::new();
-        for part in self.partition_by.iter() {
-            col_set.insert(part.index);
-            col_set.extend(part.scalar.used_columns())
-        }
-        Ok(col_set)
-    }
-
-    pub fn order_by_columns(&self) -> Result<ColumnSet> {
-        let mut col_set = ColumnSet::new();
-        for sort in self.order_by.iter() {
-            col_set.insert(sort.order_by_item.index);
-            col_set.extend(sort.order_by_item.scalar.used_columns())
-        }
-        Ok(col_set)
+    fn return_type(&self) -> DataType {
+        <Self as databend_common_sql_plans::PlanWindowFunction<ScalarExpr>>::return_type(self)
     }
 }
 
@@ -116,20 +68,9 @@ impl Operator for Window {
     }
 
     fn scalar_expr_iter(&self) -> Box<dyn Iterator<Item = &ScalarExpr> + '_> {
-        let iter = self.order_by.iter().map(|o| &o.order_by_item.scalar);
-        let iter = iter.chain(self.partition_by.iter().map(|expr| &expr.scalar));
-        let iter = iter.chain(self.arguments.iter().map(|expr| &expr.scalar));
-
-        match &self.function {
-            WindowFuncType::Aggregate(agg) => Box::new(iter.chain(agg.exprs())),
-            WindowFuncType::LagLead(lag_lead_function) => {
-                Box::new(iter.chain(std::iter::once(lag_lead_function.arg.as_ref())))
-            }
-            WindowFuncType::NthValue(nth_value_function) => {
-                Box::new(iter.chain(std::iter::once(nth_value_function.arg.as_ref())))
-            }
-            _ => Box::new(iter),
-        }
+        databend_common_sql_plans::GenericWindow::<WindowFuncType, ScalarExpr>::scalar_expr_iter(
+            self,
+        )
     }
 
     fn compute_required_prop_child(
@@ -174,7 +115,10 @@ impl Operator for Window {
             .collect();
 
         // Derive used columns
-        let mut used_columns = self.used_columns()?;
+        let mut used_columns =
+            databend_common_sql_plans::GenericWindow::<WindowFuncType, ScalarExpr>::used_columns(
+                self,
+            )?;
         used_columns.extend(input_prop.used_columns.clone());
 
         // Derive orderings
@@ -195,122 +139,6 @@ impl Operator for Window {
     }
 }
 
-#[derive(Default, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
-pub struct WindowFuncFrame {
-    pub units: WindowFuncFrameUnits,
-    pub start_bound: WindowFuncFrameBound,
-    pub end_bound: WindowFuncFrameBound,
-}
-
-impl Display for WindowFuncFrame {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{:?}: {:?} ~ {:?}",
-            self.units, self.start_bound, self.end_bound
-        )
-    }
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumAsInner)]
-pub enum WindowFuncFrameUnits {
-    #[default]
-    Rows,
-    Range,
-}
-
-#[derive(Default, Clone, PartialEq, Eq, Hash, Debug, Serialize, Deserialize)]
-pub enum WindowFuncFrameBound {
-    /// `CURRENT ROW`
-    #[default]
-    CurrentRow,
-    /// `<N> PRECEDING` or `UNBOUNDED PRECEDING`
-    Preceding(Option<Scalar>),
-    /// `<N> FOLLOWING` or `UNBOUNDED FOLLOWING`.
-    Following(Option<Scalar>),
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum WindowFuncType {
-    Aggregate(AggregateFunction),
-    RowNumber,
-    Rank,
-    DenseRank,
-    PercentRank,
-    LagLead(LagLeadFunction),
-    NthValue(NthValueFunction),
-    Ntile(NtileFunction),
-    CumeDist,
-}
-
-impl WindowFuncType {
-    pub fn from_name(name: &str) -> Result<WindowFuncType> {
-        match name {
-            "row_number" => Ok(WindowFuncType::RowNumber),
-            "rank" => Ok(WindowFuncType::Rank),
-            "dense_rank" => Ok(WindowFuncType::DenseRank),
-            "percent_rank" => Ok(WindowFuncType::PercentRank),
-            "cume_dist" => Ok(WindowFuncType::CumeDist),
-            _ => Err(ErrorCode::UnknownFunction(format!(
-                "Unknown window function: {}",
-                name
-            ))),
-        }
-    }
-
-    pub fn func_name(&self) -> String {
-        match self {
-            WindowFuncType::Aggregate(agg) => agg.func_name.to_string(),
-            WindowFuncType::RowNumber => "row_number".to_string(),
-            WindowFuncType::Rank => "rank".to_string(),
-            WindowFuncType::DenseRank => "dense_rank".to_string(),
-            WindowFuncType::PercentRank => "percent_rank".to_string(),
-            WindowFuncType::LagLead(lag_lead) if lag_lead.is_lag => "lag".to_string(),
-            WindowFuncType::LagLead(_) => "lead".to_string(),
-            WindowFuncType::NthValue(_) => "nth_value".to_string(),
-            WindowFuncType::Ntile(_) => "ntile".to_string(),
-            WindowFuncType::CumeDist => "cume_dist".to_string(),
-        }
-    }
-
-    pub fn used_columns(&self) -> ColumnSet {
-        match self {
-            WindowFuncType::Aggregate(agg) => {
-                agg.exprs().flat_map(|expr| expr.used_columns()).collect()
-            }
-            WindowFuncType::LagLead(func) => match &func.default {
-                None => func.arg.used_columns(),
-                Some(d) => func
-                    .arg
-                    .used_columns()
-                    .union(&d.used_columns())
-                    .cloned()
-                    .collect(),
-            },
-            WindowFuncType::NthValue(func) => func.arg.used_columns(),
-            _ => ColumnSet::new(),
-        }
-    }
-
-    pub fn return_type(&self) -> DataType {
-        match self {
-            WindowFuncType::Aggregate(agg) => *agg.return_type.clone(),
-            WindowFuncType::RowNumber | WindowFuncType::Rank | WindowFuncType::DenseRank => {
-                DataType::Number(NumberDataType::UInt64)
-            }
-            WindowFuncType::PercentRank | WindowFuncType::CumeDist => {
-                DataType::Number(NumberDataType::Float64)
-            }
-            WindowFuncType::LagLead(lag_lead) => *lag_lead.return_type.clone(),
-            WindowFuncType::NthValue(nth_value) => *nth_value.return_type.clone(),
-            WindowFuncType::Ntile(buckets) => *buckets.return_type.clone(),
-        }
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct WindowPartition {
-    pub partition_by: Vec<ScalarItem>,
-    pub top: Option<usize>,
-    pub func: WindowFuncType,
-}
+pub type WindowOrderByInfo = databend_common_sql_plans::GenericWindowOrderByInfo<ScalarExpr>;
+pub type WindowPartition =
+    databend_common_sql_plans::GenericWindowPartition<WindowFuncType, ScalarExpr>;

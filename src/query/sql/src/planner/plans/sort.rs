@@ -19,7 +19,6 @@ use databend_common_exception::Result;
 
 use super::WindowPartition;
 use crate::ColumnSet;
-use crate::Symbol;
 use crate::optimizer::ir::Distribution;
 use crate::optimizer::ir::PhysicalProperty;
 use crate::optimizer::ir::RelExpr;
@@ -29,27 +28,27 @@ use crate::optimizer::ir::StatInfo;
 use crate::plans::Operator;
 use crate::plans::RelOp;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Sort {
-    pub items: Vec<SortItem>,
-    pub limit: Option<usize>,
+pub type Sort = databend_common_sql_plans::GenericSort<WindowPartition>;
+pub use databend_common_sql_plans::SortItem;
 
-    pub after_exchange: Option<bool>,
+pub trait SortExt {
+    fn used_columns(&self) -> ColumnSet;
 
-    /// The columns needed by the plan after the sort plan.
-    /// It's used to build a projection operation before building the sort operator.
-    pub pre_projection: Option<Vec<Symbol>>,
+    fn sort_items_exclude_partition(&self) -> Vec<SortItem>;
 
-    /// If sort is for window clause, we need the input to exchange by partitions
-    pub window_partition: Option<WindowPartition>,
+    fn replace_column(
+        &mut self,
+        old: databend_common_sql_plans::Symbol,
+        new: databend_common_sql_plans::Symbol,
+    );
 }
 
-impl Sort {
-    pub fn used_columns(&self) -> ColumnSet {
+impl SortExt for Sort {
+    fn used_columns(&self) -> ColumnSet {
         self.items.iter().map(|item| item.index).collect()
     }
 
-    pub fn sort_items_exclude_partition(&self) -> Vec<SortItem> {
+    fn sort_items_exclude_partition(&self) -> Vec<SortItem> {
         self.items
             .iter()
             .filter(|item| match &self.window_partition {
@@ -63,7 +62,11 @@ impl Sort {
             .collect()
     }
 
-    pub fn replace_column(&mut self, old: Symbol, new: Symbol) {
+    fn replace_column(
+        &mut self,
+        old: databend_common_sql_plans::Symbol,
+        new: databend_common_sql_plans::Symbol,
+    ) {
         for item in &mut self.items {
             if item.index == old {
                 item.index = new
@@ -82,13 +85,6 @@ impl Sort {
             unimplemented!()
         };
     }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SortItem {
-    pub index: Symbol,
-    pub asc: bool,
-    pub nulls_first: bool,
 }
 
 impl Operator for Sort {

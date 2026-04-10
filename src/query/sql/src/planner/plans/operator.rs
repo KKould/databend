@@ -106,35 +106,62 @@ pub trait Operator {
     }
 }
 
-/// Relational operator
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum RelOp {
-    Scan,
-    Join,
-    EvalScalar,
-    Filter,
-    SecureFilter,
-    Aggregate,
-    Sort,
-    Limit,
-    Exchange,
-    UnionAll,
-    DummyTableScan,
-    Window,
-    ProjectSet,
-    ConstantTableScan,
-    ExpressionScan,
-    CacheScan,
-    Udf,
-    Udaf,
-    AsyncFunction,
-    RecursiveCteScan,
-    MergeInto,
-    CompactBlock,
-    MutationSource,
-    MaterializedCTE,
-    MaterializeCTERef,
-    Sequence,
+pub use databend_common_sql_plans::RelOp;
+
+pub trait TryFromRelOperator: Sized {
+    fn try_from_rel_operator(value: RelOperator) -> Result<Self>;
+}
+
+pub fn try_from_rel_operator<T: TryFromRelOperator>(value: RelOperator) -> Result<T> {
+    T::try_from_rel_operator(value)
+}
+
+macro_rules! impl_try_from_external_rel_operator {
+    ($(($ty:ident, $variant:ident)),+ $(,)?) => {
+        $(
+            impl TryFrom<RelOperator> for $ty {
+                type Error = ErrorCode;
+
+                fn try_from(value: RelOperator) -> Result<Self> {
+                    if let RelOperator::$variant(value) = value {
+                        Ok(value)
+                    } else {
+                        Err(ErrorCode::Internal(format!(
+                            "Cannot downcast {:?} to {}",
+                            value.rel_op(),
+                            stringify!($ty)
+                        )))
+                    }
+                }
+            }
+
+            impl TryFromRelOperator for $ty {
+                fn try_from_rel_operator(value: RelOperator) -> Result<Self> {
+                    if let RelOperator::$variant(value) = value {
+                        Ok(value)
+                    } else {
+                        Err(ErrorCode::Internal(format!(
+                            "Cannot downcast {:?} to {}",
+                            value.rel_op(),
+                            stringify!($ty)
+                        )))
+                    }
+                }
+            }
+        )+
+    };
+}
+
+macro_rules! impl_from_external_rel_operator {
+    ($(($ty:ident, $variant:ident)),+ $(,)?) => {
+        $(
+            impl From<$ty> for RelOperator {
+                fn from(value: $ty) -> Self {
+                    RelOperator::$variant(value)
+                }
+            }
+        )+
+    };
 }
 
 /// Relational operators
@@ -253,28 +280,46 @@ impl Operator for RelOperator {
 
 impl_try_from_rel_operator! {
     Scan,
-    Join,
-    EvalScalar,
-    Filter,
-    SecureFilter,
-    Aggregate,
-    Sort,
-    Limit,
-    Exchange,
-    UnionAll,
     DummyTableScan,
-    Window,
     ProjectSet,
     ConstantTableScan,
     ExpressionScan,
     CacheScan,
-    Udf,
     RecursiveCteScan,
-    AsyncFunction,
     Mutation,
     CompactBlock,
     MutationSource,
     MaterializedCTE,
     MaterializedCTERef,
     Sequence
+}
+
+impl_try_from_external_rel_operator! {
+    (EvalScalar, EvalScalar),
+    (Filter, Filter),
+    (SecureFilter, SecureFilter),
+    (Limit, Limit),
+    (Exchange, Exchange),
+    (UnionAll, UnionAll),
+    (Sort, Sort),
+    (Window, Window),
+    (Aggregate, Aggregate),
+    (Join, Join),
+    (Udf, Udf),
+    (AsyncFunction, AsyncFunction),
+}
+
+impl_from_external_rel_operator! {
+    (EvalScalar, EvalScalar),
+    (Filter, Filter),
+    (SecureFilter, SecureFilter),
+    (Limit, Limit),
+    (Exchange, Exchange),
+    (UnionAll, UnionAll),
+    (Sort, Sort),
+    (Window, Window),
+    (Aggregate, Aggregate),
+    (Join, Join),
+    (Udf, Udf),
+    (AsyncFunction, AsyncFunction),
 }

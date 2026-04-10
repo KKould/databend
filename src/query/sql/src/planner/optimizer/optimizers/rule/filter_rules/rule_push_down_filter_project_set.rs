@@ -73,7 +73,7 @@ impl Rule for RulePushDownFilterProjectSet {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let filter: Filter = s_expr.plan().clone().try_into()?;
+        let filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let project_set_expr = s_expr.child(0)?;
         let project_set: ProjectSet = project_set_expr.plan().clone().try_into()?;
         let project_set_child_prop =

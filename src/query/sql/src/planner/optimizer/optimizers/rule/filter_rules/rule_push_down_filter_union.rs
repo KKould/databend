@@ -69,9 +69,10 @@ impl Rule for RulePushDownFilterUnion {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let filter: Filter = s_expr.plan().clone().try_into()?;
+        let filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let union_s_expr = s_expr.child(0)?;
-        let union: UnionAll = union_s_expr.plan().clone().try_into()?;
+        let union: UnionAll =
+            crate::plans::try_from_rel_operator(union_s_expr.plan().clone())?;
         if !union.cte_scan_names.is_empty() {
             // If the union has cte scan names, it's not allowed to push down filter.
             state.add_result(s_expr.clone());

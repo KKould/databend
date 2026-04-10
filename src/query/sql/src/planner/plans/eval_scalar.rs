@@ -19,7 +19,6 @@ use databend_common_exception::Result;
 use crate::ColumnBinding;
 use crate::ColumnBindingBuilder;
 use crate::ColumnSet;
-use crate::Symbol;
 use crate::Visibility;
 use crate::optimizer::ir::RelExpr;
 use crate::optimizer::ir::RelationalProperty;
@@ -29,21 +28,17 @@ use crate::plans::Operator;
 use crate::plans::RelOp;
 use crate::plans::ScalarExpr;
 
-/// Evaluate scalar expression
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct EvalScalar {
-    pub items: Vec<ScalarItem>,
+pub type EvalScalar = databend_common_sql_plans::GenericEvalScalar<ScalarExpr>;
+pub type ScalarItem = databend_common_sql_plans::GenericScalarItem<ScalarExpr>;
+
+pub trait ScalarItemExt {
+    fn column_binding(&self, name: String) -> Result<ColumnBinding>;
+
+    fn bound_column_expr(&self, name: String) -> Result<ScalarExpr>;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ScalarItem {
-    pub scalar: ScalarExpr,
-    // The index of the derived column in metadata
-    pub index: Symbol,
-}
-
-impl ScalarItem {
-    pub fn column_binding(&self, name: String) -> Result<ColumnBinding> {
+impl ScalarItemExt for ScalarItem {
+    fn column_binding(&self, name: String) -> Result<ColumnBinding> {
         Ok(ColumnBindingBuilder::new(
             name,
             self.index,
@@ -53,7 +48,7 @@ impl ScalarItem {
         .build())
     }
 
-    pub fn bound_column_expr(&self, name: String) -> Result<ScalarExpr> {
+    fn bound_column_expr(&self, name: String) -> Result<ScalarExpr> {
         if let ScalarExpr::BoundColumnRef(_) = &self.scalar {
             return Ok(self.scalar.clone());
         }
@@ -64,17 +59,6 @@ impl ScalarItem {
             column: column_binding,
         }
         .into())
-    }
-}
-
-impl EvalScalar {
-    pub fn used_columns(&self) -> Result<ColumnSet> {
-        let mut used_columns = ColumnSet::new();
-        for item in self.items.iter() {
-            used_columns.insert(item.index);
-            used_columns.extend(item.scalar.used_columns());
-        }
-        Ok(used_columns)
     }
 }
 

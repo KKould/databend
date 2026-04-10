@@ -33,12 +33,14 @@ use crate::plans::ConstantExpr;
 use crate::plans::FunctionCall;
 use crate::plans::Join;
 use crate::plans::LagLeadFunction;
+use crate::plans::RelOperator;
 use crate::plans::ScalarExpr;
 use crate::plans::WindowFunc;
 use crate::plans::WindowFuncFrame;
 use crate::plans::WindowFuncFrameBound;
 use crate::plans::WindowFuncFrameUnits;
 use crate::plans::WindowFuncType;
+use crate::plans::WindowFuncTypeExt;
 use crate::plans::WindowOrderBy;
 
 const GT: &str = "gt";
@@ -113,7 +115,7 @@ impl Binder {
 
         let window_plan = bind_window_function_info(&self.ctx, window_info, right)?;
         Ok(SExpr::create_binary(
-            Arc::new(join.into()),
+            Arc::new(RelOperator::Join(join)),
             Arc::new(window_plan),
             Arc::new(left),
         ))

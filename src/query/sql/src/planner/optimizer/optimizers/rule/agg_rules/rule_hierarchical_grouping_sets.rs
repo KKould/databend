@@ -43,6 +43,7 @@ use crate::plans::EvalScalar;
 use crate::plans::MaterializedCTE;
 use crate::plans::MaterializedCTERef;
 use crate::plans::RelOp;
+use crate::plans::RelOperator;
 use crate::plans::ScalarExpr;
 use crate::plans::ScalarItem;
 use crate::plans::Sequence;
@@ -760,7 +761,10 @@ impl RuleHierarchicalGroupingSetsToUnion {
             grouping_id_index,
         )?;
 
-        Ok(SExpr::create_unary(eval_scalar_plan, source_consumer))
+        Ok(SExpr::create_unary(
+            Arc::new(RelOperator::EvalScalar(eval_scalar_plan)),
+            source_consumer,
+        ))
     }
 
     /// Apply NULL semantics for columns not in the current grouping set
@@ -842,7 +846,8 @@ impl Rule for RuleHierarchicalGroupingSetsToUnion {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let eval_scalar: EvalScalar = s_expr.plan().clone().try_into()?;
+        let eval_scalar: EvalScalar =
+            crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let agg: Aggregate = s_expr.child(0)?.plan().clone().try_into()?;
 
         if agg.mode != AggregateMode::Initial {

@@ -38,6 +38,7 @@ use crate::plans::Filter;
 use crate::plans::FunctionCall;
 use crate::plans::Join;
 use crate::plans::JoinEquiCondition;
+use crate::plans::RelOperator;
 use crate::plans::JoinType;
 use crate::plans::Operator;
 use crate::plans::RelOp;
@@ -87,7 +88,7 @@ impl Rule for RulePushDownFilterJoin {
             state.add_result(s_expr);
             return Ok(());
         }
-        let filter: Filter = s_expr.plan().clone().try_into()?;
+        let filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         if filter.predicates.is_empty() {
             state.add_result(s_expr);
             return Ok(());
@@ -309,7 +310,7 @@ fn try_push_down_filter_join(s_expr: &SExpr, metadata: MetadataRef) -> Result<(b
     }
 
     let mut result = SExpr::create_binary(
-        Arc::new(join.into()),
+        Arc::new(RelOperator::Join(join)),
         Arc::new(left_child),
         Arc::new(right_child),
     );

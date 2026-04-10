@@ -37,12 +37,10 @@ use databend_common_meta_app::storage::StorageParams;
 use databend_common_meta_app::tenant::Tenant;
 use databend_common_pipeline::core::SharedLockGuard;
 
-use crate::plans::Plan;
-
 pub type TableOptions = BTreeMap<String, String>;
 
 #[derive(Clone, Debug)]
-pub struct CreateTablePlan {
+pub struct GenericCreateTablePlan<QueryPlan> {
     pub create_option: CreateOption,
     pub tenant: Tenant,
     pub catalog: String,
@@ -58,14 +56,14 @@ pub struct CreateTablePlan {
     pub table_partition: Option<Vec<String>>,
     pub field_comments: Vec<String>,
     pub cluster_key: Option<String>,
-    pub as_select: Option<Box<Plan>>,
+    pub as_select: Option<Box<QueryPlan>>,
     pub table_indexes: Option<BTreeMap<String, TableIndex>>,
     pub table_constraints: Option<BTreeMap<String, Constraint>>,
 
     pub attached_columns: Option<Vec<Identifier>>,
 }
 
-impl CreateTablePlan {
+impl<QueryPlan> GenericCreateTablePlan<QueryPlan> {
     pub fn schema(&self) -> DataSchemaRef {
         DataSchemaRefExt::create(vec![])
     }
@@ -191,7 +189,7 @@ pub struct VacuumTemporaryFilesPlan {
     pub retain: Option<Duration>,
 }
 
-impl crate::plans::VacuumTemporaryFilesPlan {
+impl VacuumTemporaryFilesPlan {
     pub fn schema(&self) -> DataSchemaRef {
         Arc::new(DataSchema::new(vec![
             DataField::new("spill_files", DataType::Number(NumberDataType::UInt64)),

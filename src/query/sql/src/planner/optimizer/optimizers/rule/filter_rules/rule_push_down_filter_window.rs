@@ -23,6 +23,7 @@ use crate::optimizer::optimizers::rule::TransformResult;
 use crate::plans::Filter;
 use crate::plans::RelOp;
 use crate::plans::Window;
+use crate::plans::WindowFuncTypeExt;
 
 /// Input:   Filter
 ///           \
@@ -77,7 +78,7 @@ impl Rule for RulePushDownFilterWindow {
         s_expr: &SExpr,
         state: &mut TransformResult,
     ) -> databend_common_exception::Result<()> {
-        let Filter { predicates } = s_expr.plan().clone().try_into()?;
+        let Filter { predicates } = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let window_expr = s_expr.child(0)?;
         let window: Window = window_expr.plan().clone().try_into()?;
         let allowed = window.partition_by_columns()?;

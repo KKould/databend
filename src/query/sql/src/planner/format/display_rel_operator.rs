@@ -37,6 +37,7 @@ use crate::plans::Sort;
 use crate::plans::Udf;
 use crate::plans::UnionAll;
 use crate::plans::Window;
+use crate::plans::WindowFuncTypeExt;
 
 impl<I: IdHumanizer> OperatorHumanizer<I> for DefaultOperatorHumanizer {
     fn humanize_operator(&self, id_humanizer: &I, op: &RelOperator) -> FormatTreeNode {

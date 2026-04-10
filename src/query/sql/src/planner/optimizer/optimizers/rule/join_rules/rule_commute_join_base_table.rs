@@ -25,6 +25,7 @@ use crate::plans::Join;
 use crate::plans::JoinType;
 use crate::plans::Operator;
 use crate::plans::RelOp;
+use crate::plans::RelOperator;
 
 /// Rule to apply commutativity of join operator.
 /// In opposite to RuleCommuteJoin, this rule only applies to base tables.
@@ -83,7 +84,7 @@ impl Rule for RuleCommuteJoinBaseTable {
                 }
                 join.join_type = join.join_type.opposite();
                 let mut result = SExpr::create_binary(
-                    Arc::new(join.into()),
+                    Arc::new(RelOperator::Join(join)),
                     Arc::new(right_child.clone()),
                     Arc::new(left_child.clone()),
                 );

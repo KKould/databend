@@ -340,11 +340,11 @@ impl Binder {
                     columns: ColumnSet::new(),
                     schema: DataSchemaRefExt::create(cache_scan_fields),
                 })
-                .build_unary(Aggregate {
+                .build_unary(Arc::new(RelOperator::Aggregate(Aggregate {
                     mode: AggregateMode::Initial,
                     group_items,
                     ..Default::default()
-                })
+                })))
                 .build_unary(scan);
 
                 Ok((s_expr, join_condition_columns))

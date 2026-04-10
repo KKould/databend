@@ -65,7 +65,7 @@ impl Rule for RulePushDownSortFilterScan {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let sort: Sort = s_expr.plan().clone().try_into()?;
+        let sort: Sort = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
 
         let child = s_expr.child(0)?;
         let (eval_scalar, filter, mut scan) = match child.plan() {
@@ -76,7 +76,8 @@ impl Rule for RulePushDownSortFilterScan {
             }
             RelOperator::EvalScalar(eval_scalar) => {
                 let filter_expr = child.child(0)?;
-                let filter: Filter = filter_expr.plan().clone().try_into()?;
+                let filter: Filter =
+                    crate::plans::try_from_rel_operator(filter_expr.plan().clone())?;
                 let scan_expr = filter_expr.child(0)?;
                 let scan: Scan = scan_expr.plan().clone().try_into()?;
                 (Some(eval_scalar.clone()), filter, scan)

@@ -38,6 +38,7 @@ use crate::executor::cast_expr_to_non_null_boolean;
 use crate::optimizer::ir::RelExpr;
 use crate::optimizer::ir::SExpr;
 use crate::plans::ConstantExpr;
+use crate::plans::RelOperator;
 use crate::plans::Filter;
 use crate::plans::Join;
 use crate::plans::JoinType;
@@ -48,7 +49,7 @@ pub fn outer_join_to_inner_join(s_expr: &SExpr, metadata: MetadataRef) -> Result
         return Ok((s_expr.clone(), false));
     }
 
-    let filter: Filter = s_expr.plan().clone().try_into()?;
+    let filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
     let join_s_expr = s_expr.child(0)?;
     let join_rel_expr = RelExpr::with_s_expr(join_s_expr);
 
@@ -119,7 +120,7 @@ pub fn outer_join_to_inner_join(s_expr: &SExpr, metadata: MetadataRef) -> Result
     let result = SExpr::create_unary(
         Arc::new(filter.into()),
         Arc::new(SExpr::create_binary(
-            Arc::new(join.into()),
+            Arc::new(RelOperator::Join(join)),
             Arc::new(join_s_expr.child(0)?.clone()),
             Arc::new(join_s_expr.child(1)?.clone()),
         )),

@@ -68,13 +68,17 @@ impl Enforcer for DistributionEnforcer {
 
     fn enforce(&self) -> Result<RelOperator> {
         match &self.0 {
-            Distribution::Serial => Ok(Exchange::Merge.into()),
-            Distribution::Broadcast => Ok(Exchange::Broadcast.into()),
+            Distribution::Serial => Ok(RelOperator::Exchange(Exchange::Merge)),
+            Distribution::Broadcast => Ok(RelOperator::Exchange(Exchange::Broadcast)),
             Distribution::NodeToNodeHash(hash_keys) => {
-                Ok(Exchange::NodeToNodeHash(hash_keys.clone()).into())
+                Ok(RelOperator::Exchange(Exchange::NodeToNodeHash(
+                    hash_keys.clone(),
+                )))
             }
             Distribution::GlobalHash(hash_keys) => {
-                Ok(Exchange::GlobalHash(hash_keys.clone()).into())
+                Ok(RelOperator::Exchange(Exchange::GlobalHash(
+                    hash_keys.clone(),
+                )))
             }
             Distribution::Random | Distribution::Any => Err(ErrorCode::Internal(
                 "Cannot enforce random or any distribution",

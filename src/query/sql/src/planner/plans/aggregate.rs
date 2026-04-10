@@ -17,11 +17,9 @@ use std::sync::Arc;
 use databend_common_catalog::table_context::TableContext;
 use databend_common_exception::ErrorCode;
 use databend_common_exception::Result;
-use databend_common_expression::types::DataType;
 
 use crate::ColumnSet;
 use crate::ScalarExpr;
-use crate::Symbol;
 use crate::optimizer::ir::Distribution;
 use crate::optimizer::ir::Ndv;
 use crate::optimizer::ir::PhysicalProperty;
@@ -32,63 +30,25 @@ use crate::optimizer::ir::StatInfo;
 use crate::optimizer::ir::Statistics;
 use crate::plans::Operator;
 use crate::plans::RelOp;
-use crate::plans::ScalarItem;
-use crate::plans::sort::SortItem;
+use crate::plans::ScalarItemExt;
 
 const DEFAULT_AGGREGATE_RATIO: f64 = 1f64 / 3f64;
 const AGGREGATE_COLUMN_CORRELATION_COEFFICIENT: f64 = 0.75_f64;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Copy)]
-pub enum AggregateMode {
-    Partial,
-    Final,
+pub use databend_common_sql_plans::AggregateMode;
+pub use databend_common_sql_plans::GroupingSets;
+pub type Aggregate = databend_common_sql_plans::GenericAggregate<ScalarExpr>;
 
-    // TODO(leiysky): this mode is only used for preventing recursion of
-    // RuleSplitAggregate, find a better way.
-    Initial,
+trait AggregateExt {
+    fn get_distribution_keys(&self, before_partial: bool) -> Result<Vec<ScalarExpr>>;
+
+    fn get_distribution(&self, ctx: Arc<dyn TableContext>) -> Result<Distribution>;
+
+    fn derive_agg_stats(&self, stat_info: Arc<StatInfo>) -> Result<Arc<StatInfo>>;
 }
 
-/// Information for `GROUPING SETS`.
-/// See the comment of [`crate::planner::binder::aggregate::GroupingSetsInfo`].
-#[derive(Clone, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct GroupingSets {
-    /// The index of the virtual column `_grouping_id`. It's valid only if `grouping_sets` is not empty.
-    pub grouping_id_index: Symbol,
-    /// See the comment in `GroupingSetsInfo`.
-    pub sets: Vec<Vec<Symbol>>,
-    /// See the comment in `GroupingSetsInfo`.
-    pub dup_group_items: Vec<(Symbol, DataType)>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Aggregate {
-    pub mode: AggregateMode,
-    // group by scalar expressions, such as: group by col1, col2;
-    pub group_items: Vec<ScalarItem>,
-    // aggregate scalar expressions, such as: sum(col1), count(*);
-    pub aggregate_functions: Vec<ScalarItem>,
-    // True if the plan is generated from distinct, else the plan is a normal aggregate;
-    pub from_distinct: bool,
-    pub rank_limit: Option<(Vec<SortItem>, usize)>,
-
-    pub grouping_sets: Option<GroupingSets>,
-}
-
-impl Default for Aggregate {
-    fn default() -> Self {
-        Self {
-            mode: AggregateMode::Initial,
-            group_items: vec![],
-            aggregate_functions: vec![],
-            from_distinct: false,
-            rank_limit: None,
-            grouping_sets: None,
-        }
-    }
-}
-
-impl Aggregate {
-    pub fn get_distribution_keys(&self, before_partial: bool) -> Result<Vec<ScalarExpr>> {
+impl AggregateExt for Aggregate {
+    fn get_distribution_keys(&self, before_partial: bool) -> Result<Vec<ScalarExpr>> {
         if before_partial {
             self.group_items
                 .iter()
@@ -127,29 +87,7 @@ impl Aggregate {
         }
     }
 
-    pub fn used_columns(&self) -> Result<ColumnSet> {
-        let mut used_columns = ColumnSet::new();
-        for group_item in self.group_items.iter() {
-            used_columns.insert(group_item.index);
-            used_columns.extend(group_item.scalar.used_columns())
-        }
-        for agg in self.aggregate_functions.iter() {
-            used_columns.insert(agg.index);
-            used_columns.extend(agg.scalar.used_columns())
-        }
-        Ok(used_columns)
-    }
-
-    pub fn group_columns(&self) -> Result<ColumnSet> {
-        let mut col_set = ColumnSet::new();
-        for group_item in self.group_items.iter() {
-            col_set.insert(group_item.index);
-            col_set.extend(group_item.scalar.used_columns())
-        }
-        Ok(col_set)
-    }
-
-    pub fn derive_agg_stats(&self, stat_info: Arc<StatInfo>) -> Result<Arc<StatInfo>> {
+    fn derive_agg_stats(&self, stat_info: Arc<StatInfo>) -> Result<Arc<StatInfo>> {
         let column_stats = &stat_info.statistics.column_stats;
         if self.group_items.is_empty() {
             return Ok(Arc::new(StatInfo {

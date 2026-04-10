@@ -41,6 +41,7 @@ use crate::optimizer::ir::SExpr;
 use crate::plans::AggIndexInfo;
 use crate::plans::Aggregate;
 use crate::plans::AggregateFunctionScalarSortDesc;
+use crate::plans::AggregateFunctionScalarSortDescExt;
 use crate::plans::BoundColumnRef;
 use crate::plans::ConstantExpr;
 use crate::plans::FunctionCall;
@@ -396,7 +397,7 @@ impl ViewInfo {
                             .collect::<Result<_>>()?,
                         func.sort_descs
                             .iter()
-                            .map(|desc| desc.try_into())
+                            .map(|desc| desc.try_into_sort_desc())
                             .collect::<Result<_>>()?,
                     )?;
                     (func.serialize_data_type(), true)

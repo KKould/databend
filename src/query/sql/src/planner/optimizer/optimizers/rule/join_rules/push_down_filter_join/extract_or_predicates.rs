@@ -22,7 +22,7 @@ use crate::plans::Filter;
 use crate::plans::FunctionCall;
 
 pub fn rewrite_predicates(s_expr: &SExpr) -> Result<Vec<ScalarExpr>> {
-    let filter: Filter = s_expr.plan().clone().try_into()?;
+    let filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
     let join = s_expr.unary_child();
     let mut new_predicates = Vec::new();
     let mut origin_predicates = filter.predicates.clone();

@@ -18,6 +18,7 @@ use std::sync::Arc;
 
 use databend_common_catalog::table_context::TableContext;
 use databend_common_exception::Result;
+use databend_common_sql::PlanFormatIndent;
 use databend_common_sql::optimizer::OptimizerContext;
 use databend_common_sql::optimizer::ir::Matcher;
 use databend_common_sql::optimizer::ir::SExpr;

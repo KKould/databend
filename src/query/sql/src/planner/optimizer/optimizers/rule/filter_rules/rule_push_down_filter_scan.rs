@@ -187,7 +187,7 @@ impl Rule for RulePushDownFilterScan {
     }
 
     fn apply_matcher(&self, idx: usize, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let filter: Filter = s_expr.plan().clone().try_into()?;
+        let filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let child = s_expr.child(0)?;
 
         let (mut scan, secure_filter): (Scan, Option<SecureFilter>) = match idx {
@@ -195,7 +195,8 @@ impl Rule for RulePushDownFilterScan {
             0 => (child.plan().clone().try_into()?, None),
             // Filter -> SecureFilter -> Scan
             1 => {
-                let secure_filter: SecureFilter = child.plan().clone().try_into()?;
+                let secure_filter: SecureFilter =
+                    crate::plans::try_from_rel_operator(child.plan().clone())?;
                 let scan: Scan = child.child(0)?.plan().clone().try_into()?;
                 (scan, Some(secure_filter))
             }

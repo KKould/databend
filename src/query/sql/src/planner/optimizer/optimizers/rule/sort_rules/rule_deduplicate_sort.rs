@@ -57,7 +57,7 @@ impl Rule for RuleDeduplicateSort {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let sort: Sort = s_expr.plan().clone().try_into()?;
+        let sort: Sort = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
 
         if sort.items.len() <= 1 {
             return Ok(());

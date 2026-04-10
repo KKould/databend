@@ -77,9 +77,10 @@ impl Rule for RuleMergeLimit {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let outer_limit: Limit = s_expr.plan().clone().try_into()?;
+        let outer_limit: Limit = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let inner_limit_expr = s_expr.child(0)?;
-        let inner_limit: Limit = inner_limit_expr.plan().clone().try_into()?;
+        let inner_limit: Limit =
+            crate::plans::try_from_rel_operator(inner_limit_expr.plan().clone())?;
         let input = inner_limit_expr.child(0)?;
 
         // Merge offset: the total offset is the sum of inner and outer offsets.

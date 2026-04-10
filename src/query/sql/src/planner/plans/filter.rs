@@ -27,20 +27,7 @@ use crate::plans::Operator;
 use crate::plans::RelOp;
 use crate::plans::ScalarExpr;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Filter {
-    pub predicates: Vec<ScalarExpr>,
-}
-
-impl Filter {
-    pub fn used_columns(&self) -> Result<ColumnSet> {
-        Ok(self
-            .predicates
-            .iter()
-            .map(|scalar| scalar.used_columns())
-            .fold(ColumnSet::new(), |acc, x| acc.union(&x).cloned().collect()))
-    }
-}
+pub type Filter = databend_common_sql_plans::GenericFilter<ScalarExpr>;
 
 impl Operator for Filter {
     fn rel_op(&self) -> RelOp {

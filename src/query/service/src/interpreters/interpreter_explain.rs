@@ -36,6 +36,7 @@ use databend_common_sql::BindContext;
 use databend_common_sql::ColumnSet;
 use databend_common_sql::FormatOptions;
 use databend_common_sql::MetadataRef;
+use databend_common_sql::PlanFormatIndent;
 use databend_common_sql::binder::ExplainConfig;
 use databend_common_sql::plans::Mutation;
 use databend_common_storages_basic::ResultCacheReader;
@@ -112,8 +113,12 @@ impl Interpreter for ExplainInterpreter {
                     self.explain_query(s_expr, metadata, bind_context, formatted_ast)
                         .await?
                 }
-                Plan::Insert(insert_plan) => insert_plan.explain(options).await?,
-                Plan::Replace(replace_plan) => replace_plan.explain(options).await?,
+                Plan::Insert(insert_plan) => {
+                    databend_common_sql::plans::explain_insert(insert_plan, options).await?
+                }
+                Plan::Replace(replace_plan) => {
+                    databend_common_sql::plans::explain_replace(replace_plan, options).await?
+                }
                 Plan::CreateTable(plan) => match &plan.as_select {
                     Some(box Plan::Query {
                         s_expr,

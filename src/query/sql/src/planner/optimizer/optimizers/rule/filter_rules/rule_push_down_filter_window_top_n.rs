@@ -82,11 +82,11 @@ impl Rule for RulePushDownFilterWindowTopN {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let filter: Filter = s_expr.plan().clone().try_into()?;
+        let filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let window_expr = s_expr.child(0)?;
         let window: Window = window_expr.plan().clone().try_into()?;
         let sort_expr = window_expr.child(0)?;
-        let mut sort: Sort = sort_expr.plan().clone().try_into()?;
+        let mut sort: Sort = crate::plans::try_from_rel_operator(sort_expr.plan().clone())?;
 
         if !is_ranking_function(&window.function) || sort.window_partition.is_none() {
             return Ok(());

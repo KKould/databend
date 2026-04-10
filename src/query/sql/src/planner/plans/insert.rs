@@ -12,158 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::sync::Arc;
-
 use databend_common_ast::ast::FormatTreeNode;
-use databend_common_exception::Result;
-use databend_common_expression::BlockThresholds;
 use databend_common_expression::DataBlock;
-use databend_common_expression::DataField;
-use databend_common_expression::DataSchemaRef;
-use databend_common_expression::DataSchemaRefExt;
 use databend_common_expression::FromData;
-use databend_common_expression::RemoteDefaultExpr;
-use databend_common_expression::Scalar;
-use databend_common_expression::TableSchemaRef;
-use databend_common_expression::types::DataType;
-use databend_common_expression::types::NumberDataType;
 use databend_common_expression::types::StringType;
-use databend_common_meta_app::principal::FileFormatParams;
-use databend_common_meta_app::schema::TableInfo;
-use enum_as_inner::EnumAsInner;
-use parking_lot::Mutex;
-use serde::Deserialize;
-use serde::Serialize;
-use tokio::sync::mpsc::Receiver;
 
 use super::Plan;
-use crate::INSERT_NAME;
 use crate::planner::format::FormatOptions;
 use crate::planner::format::MetadataIdHumanizer;
 use crate::plans::CopyIntoTablePlan;
 
-#[derive(Clone, Debug, EnumAsInner)]
-pub enum InsertInputSource {
-    SelectPlan(Box<Plan>),
-    Values(InsertValue),
-    // From stage
-    Stage(Box<Plan>),
-    StreamingLoad(StreamingLoadPlan),
-}
+pub use databend_common_sql_plans::InsertValue;
+pub use databend_common_sql_plans::StreamingLoadPlan;
 
-#[derive(Clone, Debug)]
-pub struct StreamingLoadPlan {
-    pub file_format: Box<FileFormatParams>,
+pub type Insert = databend_common_sql_plans::GenericInsert<Plan>;
+pub type InsertInputSource = databend_common_sql_plans::GenericInsertInputSource<Plan>;
 
-    // given SQL: ... into table (c1, c2, c3, c4) values (1, ?, 'a', ?)
-    // required_values_schema = (c1, c2, c3, c4)
-    // required_source_schema = (c2, c4)
-    // values_consts = [1, 'a']
-    pub required_values_schema: DataSchemaRef,
-    pub values_consts: Vec<Scalar>,
-    pub required_source_schema: TableSchemaRef,
-
-    pub default_exprs: Option<Vec<RemoteDefaultExpr>>,
-    pub block_thresholds: BlockThresholds,
-    pub receiver: Arc<Mutex<Option<Receiver<Result<DataBlock>>>>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum InsertValue {
-    // Scalars of literal values
-    Values { rows: Vec<Vec<Scalar>> },
-    // Raw values of clickhouse dialect
-    RawValues { data: String, start: usize },
-}
-
-#[derive(Clone)]
-pub struct Insert {
-    pub catalog: String,
-    pub database: String,
-    pub table: String,
-    pub branch: Option<String>,
-    pub schema: TableSchemaRef,
-    pub overwrite: bool,
-    pub source: InsertInputSource,
-    // if a table with fixed table id, and version should be used,
-    // it should be provided as some `table_info`.
-    // otherwise, the table being inserted will be resolved by using `catalog`.`database`.`table`
-    pub table_info: Option<TableInfo>,
-}
-
-impl PartialEq for Insert {
-    fn eq(&self, other: &Self) -> bool {
-        self.catalog == other.catalog
-            && self.database == other.database
-            && self.table == other.table
-            && self.schema == other.schema
-            && self.branch == other.branch
-    }
-}
-
-impl Insert {
-    pub fn dest_schema(&self) -> DataSchemaRef {
-        Arc::new(self.schema.clone().into())
-    }
-
-    pub fn has_select_plan(&self) -> bool {
-        matches!(&self.source, InsertInputSource::SelectPlan(_))
-    }
-
-    #[async_backtrace::framed]
-    pub async fn explain(
-        &self,
-        options: FormatOptions,
-    ) -> databend_common_exception::Result<Vec<DataBlock>> {
-        let mut result = vec![];
-
-        let Insert {
-            catalog,
-            database,
-            table,
-            branch,
-            schema,
-            overwrite,
-            // table_info only used create table as select.
-            table_info: _,
-            source,
-        } = self;
-
-        let table_name = if let Some(branch) = branch {
-            format!("{}.{}.{}/{}", catalog, database, table, branch)
-        } else {
-            format!("{}.{}.{}", catalog, database, table)
-        };
-        let inserted_columns = schema
-            .fields
-            .iter()
-            .map(|field| format!("{}.{} (#{})", table, field.name, field.column_id))
-            .collect::<Vec<_>>()
-            .join(",");
-
-        let children = vec![
-            FormatTreeNode::new(format!("table: {table_name}")),
-            FormatTreeNode::new(format!("inserted columns: [{inserted_columns}]")),
-            FormatTreeNode::new(format!("overwrite: {overwrite}")),
-        ];
-
-        let formatted_plan = format_insert_source("InsertPlan", source, options, children)?;
-
-        let line_split_result: Vec<&str> = formatted_plan.lines().collect();
-        let formatted_plan = StringType::from_data(line_split_result);
-        result.push(DataBlock::new_from_columns(vec![formatted_plan]));
-        Ok(vec![DataBlock::concat(&result)?])
-    }
-
-    pub fn schema(&self) -> DataSchemaRef {
-        DataSchemaRefExt::create(vec![DataField::new(
-            INSERT_NAME,
-            DataType::Number(NumberDataType::UInt64),
-        )])
-    }
-}
-
-pub(crate) fn format_insert_source(
+pub fn format_insert_source(
     plan_name: &str,
     source: &InsertInputSource,
     options: FormatOptions,
@@ -260,15 +125,45 @@ pub(crate) fn format_insert_source(
     }
 }
 
-impl std::fmt::Debug for Insert {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.debug_struct("Insert")
-            .field("catalog", &self.catalog)
-            .field("database", &self.database)
-            .field("table", &self.table)
-            .field("branch", &self.branch)
-            .field("schema", &self.schema)
-            .field("overwrite", &self.overwrite)
-            .finish()
-    }
+#[async_backtrace::framed]
+pub async fn explain_insert(
+    plan: &Insert,
+    options: FormatOptions,
+) -> databend_common_exception::Result<Vec<DataBlock>> {
+    let mut result = vec![];
+
+    let Insert {
+        catalog,
+        database,
+        table,
+        branch,
+        schema,
+        overwrite,
+        table_info: _,
+        source,
+    } = plan;
+
+    let table_name = if let Some(branch) = branch {
+        format!("{}.{}.{}/{}", catalog, database, table, branch)
+    } else {
+        format!("{}.{}.{}", catalog, database, table)
+    };
+    let inserted_columns = schema
+        .fields
+        .iter()
+        .map(|field| format!("{}.{} (#{})", table, field.name, field.column_id))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let children = vec![
+        FormatTreeNode::new(format!("table: {table_name}")),
+        FormatTreeNode::new(format!("inserted columns: [{inserted_columns}]")),
+        FormatTreeNode::new(format!("overwrite: {overwrite}")),
+    ];
+
+    let formatted_plan = format_insert_source("InsertPlan", source, options, children)?;
+    let line_split_result: Vec<&str> = formatted_plan.lines().collect();
+    let formatted_plan = StringType::from_data(line_split_result);
+    result.push(DataBlock::new_from_columns(vec![formatted_plan]));
+    Ok(vec![DataBlock::concat(&result)?])
 }

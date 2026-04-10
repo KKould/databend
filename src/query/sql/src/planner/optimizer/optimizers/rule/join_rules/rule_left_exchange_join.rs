@@ -30,6 +30,7 @@ use crate::plans::Join;
 use crate::plans::JoinEquiCondition;
 use crate::plans::JoinType;
 use crate::plans::RelOp;
+use crate::plans::RelOperator;
 
 /// Rule to apply swap on a left-deep join.
 /// If we have a join tree like:
@@ -211,8 +212,8 @@ impl Rule for RuleLeftExchangeJoin {
         }
 
         let mut result = SExpr::create_binary(
-            join_3,
-            SExpr::create_binary(join_4, t1.clone(), t3.clone()),
+            Arc::new(RelOperator::Join(join_3)),
+            SExpr::create_binary(Arc::new(RelOperator::Join(join_4)), t1.clone(), t3.clone()),
             t2.clone(),
         );
 

@@ -45,6 +45,7 @@ use crate::plans::BoundColumnRef;
 use crate::plans::EvalScalar;
 use crate::plans::FunctionCall;
 use crate::plans::JoinType;
+use crate::plans::RelOperator;
 use crate::plans::ScalarItem;
 
 /// Rule to push aggregation past a join to reduces the number of input rows to the join.
@@ -760,7 +761,7 @@ impl EagerAnalysis {
 
         Ok(Some(self.build_result(
             input,
-            split_join.build_unary(eager_split_count_sum),
+            split_join.build_unary(Arc::new(RelOperator::EvalScalar(eager_split_count_sum))),
             final_eager_split,
             eager_split_eval_scalar,
         )))
@@ -829,7 +830,9 @@ impl EagerAnalysis {
         let groupby_count_join = if eager_groupby_count_count_sum.items.is_empty() {
             groupby_count_join
         } else {
-            groupby_count_join.build_unary(eager_groupby_count_count_sum)
+            groupby_count_join.build_unary(Arc::new(RelOperator::EvalScalar(
+                eager_groupby_count_count_sum,
+            )))
         };
 
         Ok(Some(self.build_result(
@@ -926,7 +929,7 @@ impl EagerAnalysis {
 
         Ok(Some(self.build_result(
             input,
-            new_join.build_unary(eager_count_sum),
+            new_join.build_unary(Arc::new(RelOperator::EvalScalar(eager_count_sum))),
             final_eager_count,
             input.eval_scalar.clone(),
         )))
@@ -1004,7 +1007,7 @@ impl EagerAnalysis {
                 input,
                 new_join
                     .replace_side_child(d, group_by_child)
-                    .build_unary(double_eager_count_sum),
+                    .build_unary(Arc::new(RelOperator::EvalScalar(double_eager_count_sum))),
                 final_double_eager,
                 double_eager_eval_scalar,
             ),
@@ -1022,16 +1025,16 @@ impl EagerAnalysis {
             .group_items
             .truncate(self.original_group_items_len);
         let plan = s_expr
-            .build_unary(Aggregate {
+            .build_unary(Arc::new(RelOperator::Aggregate(Aggregate {
                 mode: AggregateMode::Partial,
                 ..final_aggr.clone()
-            })
-            .build_unary(final_aggr);
+            })))
+            .build_unary(Arc::new(RelOperator::Aggregate(final_aggr)));
         let plan = match input.sort_expr {
             Some(sort_expr) => plan.build_unary(sort_expr.plan.clone()),
             None => plan,
         };
-        plan.build_unary(eval_scalar)
+        plan.build_unary(Arc::new(RelOperator::EvalScalar(eval_scalar)))
     }
 
     fn pruned_aggregate_for_side(&self, side: Side) -> Aggregate {
@@ -1265,16 +1268,18 @@ impl Side {
     ) -> SExpr {
         if !extra_eval_scalar.items.is_empty() {
             self.child(join_expr)
-                .ref_build_unary(extra_eval_scalar.clone())
+                .ref_build_unary(Arc::new(RelOperator::EvalScalar(
+                    extra_eval_scalar.clone(),
+                )))
                 .into()
         } else {
             self.child(join_expr)
         }
-        .ref_build_unary(Aggregate {
+        .ref_build_unary(Arc::new(RelOperator::Aggregate(Aggregate {
             mode: AggregateMode::Partial,
             ..aggregate.clone()
-        })
-        .build_unary(aggregate)
+        })))
+        .build_unary(Arc::new(RelOperator::Aggregate(aggregate)))
     }
 }
 

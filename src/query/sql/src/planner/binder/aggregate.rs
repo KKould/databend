@@ -54,6 +54,7 @@ use crate::plans::BoundColumnRef;
 use crate::plans::EvalScalar;
 use crate::plans::FunctionCall;
 use crate::plans::GroupingSets;
+use crate::plans::RelOperator;
 use crate::plans::ScalarExpr;
 use crate::plans::ScalarItem;
 use crate::plans::UDAFCall;
@@ -711,7 +712,10 @@ impl Binder {
                 dup_group_items: g.dup_group_items.clone(),
             }),
         };
-        new_expr = SExpr::create_unary(Arc::new(aggregate_plan.into()), Arc::new(new_expr));
+        new_expr = SExpr::create_unary(
+            Arc::new(RelOperator::Aggregate(aggregate_plan)),
+            Arc::new(new_expr),
+        );
 
         Ok(new_expr)
     }

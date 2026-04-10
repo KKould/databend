@@ -12,39 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use databend_common_ast::ast::SetType;
-use databend_common_expression::Scalar;
-
 use super::Plan;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct SettingValue {
-    pub is_global: bool,
-    pub variable: String,
-    pub value: String,
-}
+pub use databend_common_sql_plans::SettingValue;
+pub use databend_common_sql_plans::UnsetPlan;
+pub use databend_common_sql_plans::VarValue;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct VarValue {
-    pub variable: String,
-    pub value: Scalar,
-}
-
-#[derive(Clone, Debug)]
-pub enum SetScalarsOrQuery {
-    VarValue(Vec<Scalar>),
-    Query(Box<Plan>),
-}
-
-#[derive(Clone, Debug)]
-pub struct SetPlan {
-    pub set_type: SetType,
-    pub idents: Vec<String>,
-    pub values: SetScalarsOrQuery,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct UnsetPlan {
-    pub unset_type: SetType,
-    pub vars: Vec<String>,
-}
+pub type SetScalarsOrQuery = databend_common_sql_plans::GenericSetScalarsOrQuery<Plan>;
+pub type SetPlan = databend_common_sql_plans::GenericSetPlan<Plan>;

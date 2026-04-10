@@ -25,6 +25,7 @@ use crate::optimizer::optimizers::rule::TransformResult;
 use crate::plans::Join;
 use crate::plans::JoinType;
 use crate::plans::RelOp;
+use crate::plans::RelOperator;
 
 /// Rule to apply commutativity of join operator.
 /// Since we will always use the right child as build side, this
@@ -101,7 +102,7 @@ impl Rule for RuleCommuteJoin {
             }
             join.join_type = join.join_type.opposite();
             let mut result = SExpr::create_binary(
-                Arc::new(join.into()),
+                Arc::new(RelOperator::Join(join)),
                 Arc::new(right_child.clone()),
                 Arc::new(left_child.clone()),
             );

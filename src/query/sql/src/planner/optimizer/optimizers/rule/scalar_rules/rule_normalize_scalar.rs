@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use databend_common_ast::Span;
 use databend_common_exception::Result;
 use databend_common_expression::Scalar;
@@ -27,6 +29,7 @@ use crate::plans::ConstantExpr;
 use crate::plans::Filter;
 use crate::plans::FunctionCall;
 use crate::plans::RelOp;
+use crate::plans::RelOperator;
 use crate::plans::ScalarExpr;
 use crate::plans::VisitorMut;
 
@@ -76,7 +79,9 @@ impl Rule for RuleNormalizeScalarFilter {
                 let Some(predicates) = RewritePredicates {}.rewrite(&filter.predicates)? else {
                     return Ok(());
                 };
-                state.add_result(s_expr.replace_plan(Filter { predicates }));
+                state.add_result(
+                    s_expr.replace_plan(Arc::new(RelOperator::Filter(Filter { predicates }))),
+                );
                 Ok(())
             }
             1 => {

@@ -42,6 +42,7 @@ use databend_common_sql::optimizer::ir::SExpr;
 use databend_common_sql::plans::WindowFuncFrame;
 use databend_common_sql::plans::WindowFuncFrameBound;
 use databend_common_sql::plans::WindowFuncType;
+use databend_common_sql::plans::AggregateFunctionScalarSortDescExt;
 
 use super::LagLeadDefault;
 use super::LagLeadFunctionDesc;
@@ -410,7 +411,7 @@ impl PhysicalPlanBuilder {
                     sort_descs: agg
                         .sort_descs
                         .iter()
-                        .map(|d| d.try_into())
+                        .map(|d| d.try_into_sort_desc())
                         .collect::<Result<_>>()?,
                 },
                 output_column: w.index,

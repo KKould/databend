@@ -156,13 +156,14 @@ impl RulePushDownPrewhere {
     }
 
     pub fn prewhere_optimize(&self, s_expr: &SExpr) -> Result<SExpr> {
-        let filter: Filter = s_expr.plan().clone().try_into()?;
+        let filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
 
         let child = s_expr.child(0)?;
         let (mut scan, secure_filter) = match child.plan() {
             crate::plans::RelOperator::Scan(_) => (child.plan().clone().try_into()?, None),
             crate::plans::RelOperator::SecureFilter(_) => {
-                let secure_filter: SecureFilter = child.plan().clone().try_into()?;
+                let secure_filter: SecureFilter =
+                    crate::plans::try_from_rel_operator(child.plan().clone())?;
                 let scan: Scan = child.child(0)?.plan().clone().try_into()?;
                 (scan, Some(secure_filter))
             }

@@ -69,7 +69,7 @@ impl Rule for RulePushDownLimitOuterJoin {
         s_expr: &SExpr,
         state: &mut TransformResult,
     ) -> databend_common_exception::Result<()> {
-        let limit: Limit = s_expr.plan().clone().try_into()?;
+        let limit: Limit = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         if limit.limit.is_some() {
             let child = s_expr.child(0)?;
             let join: Join = child.plan().clone().try_into()?;

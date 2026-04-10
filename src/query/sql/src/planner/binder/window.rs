@@ -48,8 +48,10 @@ use crate::plans::Window;
 use crate::plans::WindowFunc;
 use crate::plans::WindowFuncFrame;
 use crate::plans::WindowFuncType;
+use crate::plans::WindowFuncTypeExt;
 use crate::plans::WindowOrderBy;
 use crate::plans::WindowPartition;
+pub use crate::plans::WindowOrderByInfo;
 use crate::plans::walk_expr_mut;
 
 impl Binder {
@@ -218,13 +220,6 @@ pub struct WindowFunctionInfo {
     pub partition_by_items: Vec<ScalarItem>,
     pub order_by_items: Vec<WindowOrderByInfo>,
     pub frame: WindowFuncFrame,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
-pub struct WindowOrderByInfo {
-    pub order_by_item: ScalarItem,
-    pub asc: Option<bool>,
-    pub nulls_first: Option<bool>,
 }
 
 pub(super) struct WindowRewriter<'a> {

@@ -18,31 +18,15 @@ use databend_common_catalog::table_context::TableContext;
 use databend_common_exception::Result;
 
 use crate::ColumnSet;
+use crate::ScalarExpr;
 use crate::optimizer::ir::RelExpr;
 use crate::optimizer::ir::RelationalProperty;
 use crate::optimizer::ir::RequiredProperty;
 use crate::optimizer::ir::StatInfo;
 use crate::plans::Operator;
 use crate::plans::RelOp;
-use crate::plans::ScalarItem;
 
-/// `Udaf` is a plan that evaluate a series of udaf functions.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Udaf {
-    pub items: Vec<ScalarItem>,
-    pub script_udf: bool,
-}
-
-impl Udaf {
-    pub fn used_columns(&self) -> Result<ColumnSet> {
-        let mut used_columns = ColumnSet::new();
-        for item in self.items.iter() {
-            used_columns.insert(item.index);
-            used_columns.extend(item.scalar.used_columns());
-        }
-        Ok(used_columns)
-    }
-}
+pub type Udaf = databend_common_sql_plans::GenericUdaf<ScalarExpr>;
 
 impl Operator for Udaf {
     fn rel_op(&self) -> RelOp {

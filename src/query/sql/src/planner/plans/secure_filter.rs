@@ -18,7 +18,6 @@ use std::sync::Arc;
 use databend_common_exception::Result;
 
 use crate::ColumnSet;
-use crate::IndexType;
 use crate::optimizer::ir::RelExpr;
 use crate::optimizer::ir::RelationalProperty;
 use crate::optimizer::ir::SelectivityEstimator;
@@ -28,21 +27,7 @@ use crate::plans::Operator;
 use crate::plans::RelOp;
 use crate::plans::ScalarExpr;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct SecureFilter {
-    pub predicates: Vec<ScalarExpr>,
-    pub table_index: IndexType,
-}
-
-impl SecureFilter {
-    pub fn used_columns(&self) -> Result<ColumnSet> {
-        Ok(self
-            .predicates
-            .iter()
-            .map(|scalar| scalar.used_columns())
-            .fold(ColumnSet::new(), |acc, x| acc.union(&x).cloned().collect()))
-    }
-}
+pub type SecureFilter = databend_common_sql_plans::GenericSecureFilter<ScalarExpr>;
 
 impl Operator for SecureFilter {
     fn rel_op(&self) -> RelOp {

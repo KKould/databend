@@ -25,14 +25,7 @@ use crate::plans::Operator;
 use crate::plans::RelOp;
 use crate::plans::ScalarExpr;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Exchange {
-    Broadcast,
-    Merge,
-    MergeSort, // For distributed sort
-    NodeToNodeHash(Vec<ScalarExpr>),
-    GlobalHash(Vec<ScalarExpr>),
-}
+pub type Exchange = databend_common_sql_plans::GenericExchange<ScalarExpr>;
 
 impl Operator for Exchange {
     fn rel_op(&self) -> RelOp {

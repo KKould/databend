@@ -43,6 +43,7 @@ use crate::plans::EvalScalar;
 use crate::plans::Filter;
 use crate::plans::FunctionCall;
 use crate::plans::Join;
+use crate::plans::JoinExt;
 use crate::plans::JoinEquiCondition;
 use crate::plans::JoinType;
 use crate::plans::Limit;
@@ -287,7 +288,7 @@ impl SubqueryDecorrelatorOptimizer {
                         ..join.clone()
                     };
                     return Ok(SExpr::create_binary(
-                        Arc::new(join.into()),
+                        Arc::new(RelOperator::Join(join)),
                         Arc::new(left),
                         Arc::new(right),
                     ));
@@ -299,8 +300,11 @@ impl SubqueryDecorrelatorOptimizer {
                     non_equi_conditions: vec![],
                     ..join.clone()
                 };
-                let mut outer =
-                    SExpr::create_binary(Arc::new(join.into()), Arc::new(left), Arc::new(right));
+                let mut outer = SExpr::create_binary(
+                    Arc::new(RelOperator::Join(join)),
+                    Arc::new(left),
+                    Arc::new(right),
+                );
 
                 for pred in predicates.iter_mut() {
                     (*pred, outer) = self.try_rewrite_subquery(pred, outer, true)?;
@@ -683,7 +687,7 @@ impl SubqueryDecorrelatorOptimizer {
                 };
                 Ok((
                     SExpr::create_binary(
-                        Arc::new(cross_join.into()),
+                        Arc::new(RelOperator::Join(cross_join)),
                         Arc::new(outer),
                         Arc::new(rewritten_subquery),
                     ),
@@ -764,7 +768,7 @@ impl SubqueryDecorrelatorOptimizer {
                     ..Join::default()
                 };
                 let s_expr = SExpr::create_binary(
-                    Arc::new(mark_join.into()),
+                    Arc::new(RelOperator::Join(mark_join)),
                     Arc::new(outer),
                     Arc::new(*subquery.subquery.clone()),
                 );

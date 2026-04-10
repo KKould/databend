@@ -22,8 +22,6 @@ use databend_common_meta_app::schema::TableInfo;
 use databend_meta_client::types::MetaId;
 use databend_storages_common_table_meta::meta::Location;
 
-use crate::plans::Plan;
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CreateIndexPlan {
     pub create_option: CreateOption,
@@ -43,13 +41,13 @@ pub struct DropIndexPlan {
 }
 
 #[derive(Clone, Debug)]
-pub struct RefreshIndexPlan {
+pub struct GenericRefreshIndexPlan<QueryPlan> {
     pub index_id: u64,
     pub index_name: String,
     pub index_meta: IndexMeta,
     pub limit: Option<u64>,
     pub table_info: TableInfo,
-    pub query_plan: Box<Plan>,
+    pub query_plan: Box<QueryPlan>,
     pub segment_locs: Option<Vec<Location>>,
     pub user_defined_block_name: bool,
 }

@@ -58,8 +58,10 @@ impl Rule for RuleMergeEvalScalar {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let up_eval_scalar: EvalScalar = s_expr.plan().clone().try_into()?;
-        let down_eval_scalar: EvalScalar = s_expr.child(0)?.plan().clone().try_into()?;
+        let up_eval_scalar: EvalScalar =
+            crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
+        let down_eval_scalar: EvalScalar =
+            crate::plans::try_from_rel_operator(s_expr.child(0)?.plan().clone())?;
         let mut used_columns = ColumnSet::new();
         for item in up_eval_scalar.items.iter() {
             used_columns = used_columns

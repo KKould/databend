@@ -65,9 +65,10 @@ impl Rule for RulePushDownLimitEvalScalar {
         s_expr: &SExpr,
         state: &mut TransformResult,
     ) -> databend_common_exception::Result<()> {
-        let limit: Limit = s_expr.plan().clone().try_into()?;
+        let limit: Limit = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let eval_plan = s_expr.child(0)?;
-        let eval_scalar: EvalScalar = eval_plan.plan().clone().try_into()?;
+        let eval_scalar: EvalScalar =
+            crate::plans::try_from_rel_operator(eval_plan.plan().clone())?;
 
         let limit_expr = SExpr::create_unary(
             Arc::new(RelOperator::Limit(limit)),

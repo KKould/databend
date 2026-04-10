@@ -21,10 +21,11 @@ use crate::ScalarExpr;
 use crate::optimizer::ir::SExpr;
 use crate::plans::Filter;
 use crate::plans::Join;
+use crate::plans::RelOperator;
 use crate::plans::JoinType;
 
 pub fn convert_mark_to_semi_join(s_expr: &SExpr, metadata: MetadataRef) -> Result<(SExpr, bool)> {
-    let mut filter: Filter = s_expr.plan().clone().try_into()?;
+    let mut filter: Filter = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
     let mut join: Join = s_expr.child(0)?.plan().clone().try_into()?;
 
     let has_disjunction = filter.predicates.iter().any(
@@ -77,7 +78,7 @@ pub fn convert_mark_to_semi_join(s_expr: &SExpr, metadata: MetadataRef) -> Resul
 
     let s_join_expr = s_expr.child(0)?;
     let mut result = SExpr::create_binary(
-        Arc::new(join.into()),
+        Arc::new(RelOperator::Join(join)),
         Arc::new(s_join_expr.child(0)?.clone()),
         Arc::new(s_join_expr.child(1)?.clone()),
     );

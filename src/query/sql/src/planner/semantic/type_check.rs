@@ -217,6 +217,7 @@ use crate::plans::WindowFuncFrame;
 use crate::plans::WindowFuncFrameBound;
 use crate::plans::WindowFuncFrameUnits;
 use crate::plans::WindowFuncType;
+use crate::plans::WindowFuncTypeExt;
 use crate::plans::WindowOrderBy;
 
 const DEFAULT_DECIMAL_PRECISION: i64 = 38;
@@ -7135,17 +7136,19 @@ impl<'a> TypeChecker<'a> {
 
         assert_eq!(ctx.columns.len(), 1);
         // Wrap group by on `const_scan` to deduplicate values
-        let distinct_const_scan = const_scan.build_unary(Aggregate {
-            mode: AggregateMode::Initial,
-            group_items: vec![ScalarItem {
-                scalar: ScalarExpr::BoundColumnRef(BoundColumnRef {
-                    span: None,
-                    column: ctx.columns[0].clone(),
-                }),
-                index: ctx.columns[0].index,
-            }],
-            ..Default::default()
-        });
+        let distinct_const_scan = const_scan.build_unary(Arc::new(RelOperator::Aggregate(
+            Aggregate {
+                mode: AggregateMode::Initial,
+                group_items: vec![ScalarItem {
+                    scalar: ScalarExpr::BoundColumnRef(BoundColumnRef {
+                        span: None,
+                        column: ctx.columns[0].clone(),
+                    }),
+                    index: ctx.columns[0].index,
+                }],
+                ..Default::default()
+            },
+        )));
 
         let box mut data_type = ctx.columns[0].data_type.clone();
         let rel_expr = RelExpr::with_s_expr(&distinct_const_scan);

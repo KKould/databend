@@ -56,7 +56,7 @@ impl Rule for RulePushDownLimit {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let limit: Limit = s_expr.plan().clone().try_into()?;
+        let limit: Limit = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         if let Some(limit_val) = limit.limit
             && limit_val == 0
         {

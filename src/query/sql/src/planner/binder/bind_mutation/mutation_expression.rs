@@ -269,7 +269,7 @@ impl MutationExpression {
 
                     if !predicates.is_empty() {
                         s_expr = SExpr::create_unary(
-                            Arc::new(Filter { predicates }.into()),
+                            Arc::new(RelOperator::Filter(Filter { predicates })),
                             Arc::new(s_expr),
                         );
                     }
@@ -332,7 +332,7 @@ impl MutationExpression {
                     }
 
                     s_expr = SExpr::create_unary(
-                        Arc::new(Filter { predicates }.into()),
+                        Arc::new(RelOperator::Filter(Filter { predicates })),
                         Arc::new(s_expr),
                     );
 

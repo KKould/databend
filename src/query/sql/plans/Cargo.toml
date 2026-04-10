@@ -10,9 +10,23 @@ edition = { workspace = true }
 chrono = { workspace = true }
 databend-common-ast = { workspace = true }
 databend-common-catalog = { workspace = true }
+databend-common-exception = { workspace = true }
 databend-common-expression = { workspace = true }
 databend-common-meta-app = { workspace = true }
+databend-common-metrics = { workspace = true }
+databend-common-pipeline = { workspace = true }
+databend-common-storage = { workspace = true }
+databend-meta-client = { workspace = true }
+databend-storages-common-stage = { workspace = true }
+databend-storages-common-table-meta = { workspace = true }
+educe = { workspace = true }
+enum-as-inner = { workspace = true }
+log = { workspace = true }
+opendal = { workspace = true }
+parking_lot = { workspace = true }
+recursive = { workspace = true }
 serde = { workspace = true }
+tokio = { workspace = true }
 
 [lints]
 workspace = true

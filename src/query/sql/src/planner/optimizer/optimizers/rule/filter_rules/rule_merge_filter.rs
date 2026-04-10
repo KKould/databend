@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::sync::Arc;
+
 use databend_common_exception::Result;
 
 use crate::optimizer::ir::Matcher;
@@ -21,6 +23,7 @@ use crate::optimizer::optimizers::rule::RuleID;
 use crate::optimizer::optimizers::rule::TransformResult;
 use crate::plans::Filter;
 use crate::plans::RelOp;
+use crate::plans::RelOperator;
 
 // Merge two adjacent `Filter`s into one
 pub struct RuleMergeFilter {
@@ -66,7 +69,7 @@ impl Rule for RuleMergeFilter {
             s_expr
                 .unary_child()
                 .unary_child_arc()
-                .ref_build_unary(Filter { predicates }),
+                .ref_build_unary(Arc::new(RelOperator::Filter(Filter { predicates }))),
         );
         Ok(())
     }

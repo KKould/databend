@@ -21,6 +21,7 @@ use crate::binder::Visibility;
 use crate::plans::BoundColumnRef;
 use crate::plans::ScalarExpr;
 use crate::plans::VisitorMut;
+use crate::plans::WindowFuncTypeExt;
 use crate::plans::walk_expr_mut;
 
 /// Check validity of scalar expression in a grouping context.

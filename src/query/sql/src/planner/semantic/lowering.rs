@@ -31,6 +31,7 @@ use crate::Metadata;
 use crate::Symbol;
 use crate::binder::DummyColumnType;
 use crate::plans::ScalarExpr;
+use crate::plans::WindowFuncTypeExt;
 
 pub trait TypeProvider<ColumnID: ColumnIndex> {
     fn get_type(&self, column_id: &ColumnID) -> Result<DataType>;

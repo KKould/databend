@@ -117,7 +117,7 @@ impl SubqueryDecorrelatorOptimizer {
         let filter_tree = subquery
             .subquery // EvalScalar
             .unary_child(); // Filter
-        let filter: Filter = filter_tree.plan().clone().try_into()?;
+        let filter: Filter = crate::plans::try_from_rel_operator(filter_tree.plan().clone())?;
         let filter_expr = RelExpr::with_s_expr(filter_tree);
 
         let filter_prop = filter_expr.derive_relational_prop()?;
@@ -220,7 +220,7 @@ impl SubqueryDecorrelatorOptimizer {
         }
 
         let result = SExpr::create_binary(
-            Arc::new(join.into()),
+            Arc::new(RelOperator::Join(join)),
             Arc::new(left_child),
             Arc::new(right_child),
         );

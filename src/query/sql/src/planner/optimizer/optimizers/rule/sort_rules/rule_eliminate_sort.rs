@@ -22,6 +22,7 @@ use crate::optimizer::optimizers::rule::RuleID;
 use crate::optimizer::optimizers::rule::TransformResult;
 use crate::plans::RelOp;
 use crate::plans::Sort;
+use crate::plans::SortExt;
 
 pub struct RuleEliminateSort {
     id: RuleID,
@@ -49,7 +50,7 @@ impl Rule for RuleEliminateSort {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let sort: Sort = s_expr.plan().clone().try_into()?;
+        let sort: Sort = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let input = s_expr.child(0)?;
 
         let rel_expr = RelExpr::with_s_expr(input);

@@ -68,11 +68,12 @@ impl Rule for RulePushDownLimitSort {
         s_expr: &SExpr,
         state: &mut TransformResult,
     ) -> databend_common_exception::Result<()> {
-        let limit: Limit = s_expr.plan().clone().try_into()?;
+        let limit: Limit = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         if let Some(mut count) = limit.limit {
             count += limit.offset;
             let sort = s_expr.child(0)?;
-            let mut sort_limit: Sort = sort.plan().clone().try_into()?;
+            let mut sort_limit: Sort =
+                crate::plans::try_from_rel_operator(sort.plan().clone())?;
             let limit = sort_limit.limit.map_or(count, |c| cmp::max(c, count));
 
             if limit <= self.max_limit {

@@ -25,6 +25,7 @@ use crate::optimizer::ir::RelExpr;
 use crate::optimizer::ir::RequiredProperty;
 use crate::optimizer::ir::SExpr;
 use crate::plans::Exchange;
+use crate::plans::RelOperator;
 
 /// DistributedOptimizer optimizes a query plan for distributed execution.
 /// It enforces distribution properties and applies sort/limit push down optimizations.
@@ -69,7 +70,10 @@ impl DistributedOptimizer {
         // Step 5: If not satisfied, manually enforce serial distribution
         if !root_required.satisfied_by(&physical_prop) {
             // Add an Exchange::Merge operator
-            result = SExpr::create_unary(Arc::new(Exchange::Merge.into()), Arc::new(result));
+            result = SExpr::create_unary(
+                Arc::new(RelOperator::Exchange(Exchange::Merge)),
+                Arc::new(result),
+            );
         }
 
         Ok(result)

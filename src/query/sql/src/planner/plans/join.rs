@@ -14,8 +14,6 @@
 
 use std::cmp::max;
 use std::collections::HashMap;
-use std::fmt::Display;
-use std::fmt::Formatter;
 use std::sync::Arc;
 
 use databend_common_catalog::table_context::TableContext;
@@ -42,182 +40,10 @@ use crate::plans::Operator;
 use crate::plans::RelOp;
 use crate::plans::ScalarExpr;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum JoinType {
-    Cross,
-    Inner,
-    InnerAny,
-    Left,
-    LeftAny,
-    Right,
-    RightAny,
-    Full,
-    LeftSemi,
-    RightSemi,
-    LeftAnti,
-    RightAnti,
-    /// Mark Join is a special case of join that is used to process Any subquery and correlated Exists subquery.
-    /// Left Mark output build fields and marker
-    /// Left Mark Join use subquery as probe(left) side, it's blocked at `mark_join_blocks`
-    LeftMark,
-    /// Right Mark output probe fields and marker
-    /// Right Mark Join use subquery as build(right) side, it's executed by streaming.
-    RightMark,
-    /// Single Join is a special kind of join that is used to process correlated scalar subquery.
-    LeftSingle,
-    RightSingle,
-    /// Asof Join special for  Speed ​​up timestamp join
-    Asof,
-    LeftAsof,
-    RightAsof,
-}
-
-impl JoinType {
-    pub fn opposite(&self) -> JoinType {
-        match self {
-            JoinType::Left => JoinType::Right,
-            JoinType::LeftAny => JoinType::RightAny,
-            JoinType::Right => JoinType::Left,
-            JoinType::RightAny => JoinType::LeftAny,
-            JoinType::LeftSingle => JoinType::RightSingle,
-            JoinType::RightSingle => JoinType::LeftSingle,
-            JoinType::LeftSemi => JoinType::RightSemi,
-            JoinType::RightSemi => JoinType::LeftSemi,
-            JoinType::LeftAnti => JoinType::RightAnti,
-            JoinType::RightAnti => JoinType::LeftAnti,
-            JoinType::LeftMark => JoinType::RightMark,
-            JoinType::RightMark => JoinType::LeftMark,
-            JoinType::RightAsof => JoinType::LeftAsof,
-            JoinType::LeftAsof => JoinType::RightAsof,
-            _ => *self,
-        }
-    }
-
-    pub fn is_outer_join(&self) -> bool {
-        matches!(
-            self,
-            JoinType::Left
-                | JoinType::LeftAny
-                | JoinType::Right
-                | JoinType::RightAny
-                | JoinType::Full
-                | JoinType::LeftSingle
-                | JoinType::RightSingle
-                | JoinType::LeftAsof
-                | JoinType::RightAsof
-        )
-    }
-
-    pub fn is_mark_join(&self) -> bool {
-        matches!(self, JoinType::LeftMark | JoinType::RightMark)
-    }
-
-    pub fn is_any_join(&self) -> bool {
-        matches!(
-            self,
-            JoinType::InnerAny | JoinType::LeftAny | JoinType::RightAny
-        )
-    }
-
-    pub fn is_asof_join(&self) -> bool {
-        matches!(
-            self,
-            JoinType::Asof | JoinType::LeftAsof | JoinType::RightAsof
-        )
-    }
-
-    /// Joins that behave like filters (no null preserving side) so
-    /// equi-join conditions can be deduplicated safely.
-    pub fn is_filtering_join(&self) -> bool {
-        matches!(
-            self,
-            JoinType::Inner
-                | JoinType::InnerAny
-                | JoinType::LeftSemi
-                | JoinType::RightSemi
-                | JoinType::LeftAnti
-                | JoinType::RightAnti
-        )
-    }
-}
-
-impl Display for JoinType {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        match self {
-            JoinType::Inner => {
-                write!(f, "INNER")
-            }
-            JoinType::InnerAny => {
-                write!(f, "INNER ANY")
-            }
-            JoinType::Left => {
-                write!(f, "LEFT OUTER")
-            }
-            JoinType::LeftAny => {
-                write!(f, "LEFT ANY")
-            }
-            JoinType::Right => {
-                write!(f, "RIGHT OUTER")
-            }
-            JoinType::RightAny => {
-                write!(f, "RIGHT ANY")
-            }
-            JoinType::Full => {
-                write!(f, "FULL OUTER")
-            }
-            JoinType::LeftSemi => {
-                write!(f, "LEFT SEMI")
-            }
-            JoinType::LeftAnti => {
-                write!(f, "LEFT ANTI")
-            }
-            JoinType::RightSemi => {
-                write!(f, "RIGHT SEMI")
-            }
-            JoinType::RightAnti => {
-                write!(f, "RIGHT ANTI")
-            }
-            JoinType::Cross => {
-                write!(f, "CROSS")
-            }
-            JoinType::LeftMark => {
-                write!(f, "LEFT MARK")
-            }
-            JoinType::RightMark => {
-                write!(f, "RIGHT MARK")
-            }
-            JoinType::LeftSingle => {
-                write!(f, "LEFT SINGLE")
-            }
-            JoinType::RightSingle => {
-                write!(f, "RIGHT SINGLE")
-            }
-            JoinType::Asof => {
-                write!(f, "ASOF")
-            }
-            JoinType::LeftAsof => {
-                write!(f, "LEFT ASOF")
-            }
-            JoinType::RightAsof => {
-                write!(f, "RIGHT ASOF")
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct HashJoinBuildCacheInfo {
-    pub cache_idx: usize,
-    pub columns: Vec<Symbol>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct JoinEquiCondition {
-    pub left: ScalarExpr,
-    pub right: ScalarExpr,
-    // Used for "is (not) distinct from" and mark join
-    pub is_null_equal: bool,
-}
+pub use databend_common_sql_plans::HashJoinBuildCacheInfo;
+pub type JoinEquiCondition = databend_common_sql_plans::GenericJoinEquiCondition<ScalarExpr>;
+pub type Join = databend_common_sql_plans::GenericJoin<ScalarExpr>;
+pub use databend_common_sql_plans::JoinType;
 
 impl Side {
     pub fn join_condition(self, cond: &JoinEquiCondition) -> &ScalarExpr {
@@ -228,93 +54,27 @@ impl Side {
     }
 }
 
-impl JoinEquiCondition {
-    pub fn new(left: ScalarExpr, right: ScalarExpr, is_null_equal: bool) -> Self {
-        Self {
-            left,
-            right,
-            is_null_equal,
-        }
-    }
+pub trait JoinExt {
+    fn inner_join_cardinality(
+        &self,
+        left_cardinality: &mut f64,
+        right_cardinality: &mut f64,
+        left_statistics: &mut Statistics,
+        right_statistics: &mut Statistics,
+    ) -> Result<f64>;
 
-    pub fn new_conditions(
-        left: Vec<ScalarExpr>,
-        right: Vec<ScalarExpr>,
-        is_null_equal: Vec<usize>,
-    ) -> Vec<JoinEquiCondition> {
-        left.into_iter()
-            .zip(right)
-            .enumerate()
-            .map(|(index, (left, right))| Self {
-                left,
-                right,
-                is_null_equal: is_null_equal.contains(&index),
-            })
-            .collect()
-    }
+    fn derive_join_stats(
+        &self,
+        left_stat_info: Arc<StatInfo>,
+        right_stat_info: Arc<StatInfo>,
+    ) -> Result<Arc<StatInfo>>;
+
+    fn replace_column(&mut self, old: Symbol, new: Symbol) -> Result<()>;
+
+    fn has_subquery(&self) -> bool;
 }
 
-/// Join operator. We will choose hash join by default.
-/// In the case that using hash join, the right child
-/// is always the build side, and the left child is always
-/// the probe side.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Join {
-    pub equi_conditions: Vec<JoinEquiCondition>,
-    pub non_equi_conditions: Vec<ScalarExpr>,
-    pub join_type: JoinType,
-    // marker_index is for MarkJoin only.
-    pub marker_index: Option<Symbol>,
-    pub from_correlated_subquery: bool,
-    // if we execute distributed merge into, we need to hold the
-    // hash table to get not match data from source.
-    pub need_hold_hash_table: bool,
-    pub is_lateral: bool,
-    // When left/right single join converted to inner join, record the original join type
-    // and do some special processing during runtime.
-    pub single_to_inner: Option<JoinType>,
-    // Cache info for ExpressionScan.
-    pub build_side_cache_info: Option<HashJoinBuildCacheInfo>,
-}
-
-impl Default for Join {
-    fn default() -> Self {
-        Self {
-            equi_conditions: Vec::new(),
-            non_equi_conditions: Vec::new(),
-            join_type: JoinType::Cross,
-            marker_index: None,
-            from_correlated_subquery: false,
-            need_hold_hash_table: false,
-            is_lateral: false,
-            single_to_inner: None,
-            build_side_cache_info: None,
-        }
-    }
-}
-
-impl Join {
-    pub fn used_columns(&self) -> Result<ColumnSet> {
-        let mut used_columns = ColumnSet::new();
-        for condition in self.equi_conditions.iter() {
-            used_columns = used_columns
-                .union(&condition.left.used_columns())
-                .cloned()
-                .collect();
-            used_columns = used_columns
-                .union(&condition.right.used_columns())
-                .cloned()
-                .collect();
-        }
-        for condition in self.non_equi_conditions.iter() {
-            used_columns = used_columns
-                .union(&condition.used_columns())
-                .cloned()
-                .collect();
-        }
-        Ok(used_columns)
-    }
-
+impl JoinExt for Join {
     fn inner_join_cardinality(
         &self,
         left_cardinality: &mut f64,
@@ -449,13 +209,7 @@ impl Join {
         Ok(join_card)
     }
 
-    pub fn has_null_equi_condition(&self) -> bool {
-        self.equi_conditions
-            .iter()
-            .any(|condition| condition.is_null_equal)
-    }
-
-    pub fn derive_join_stats(
+    fn derive_join_stats(
         &self,
         left_stat_info: Arc<StatInfo>,
         right_stat_info: Arc<StatInfo>,
@@ -519,7 +273,7 @@ impl Join {
         }))
     }
 
-    pub fn replace_column(&mut self, old: Symbol, new: Symbol) -> Result<()> {
+    fn replace_column(&mut self, old: Symbol, new: Symbol) -> Result<()> {
         for condition in &mut self.equi_conditions {
             condition.left.replace_column(old, new)?;
             condition.right.replace_column(old, new)?;
@@ -538,7 +292,7 @@ impl Join {
         Ok(())
     }
 
-    pub fn has_subquery(&self) -> bool {
+    fn has_subquery(&self) -> bool {
         self.equi_conditions
             .iter()
             .any(|condition| condition.left.has_subquery() || condition.right.has_subquery())

@@ -17,7 +17,6 @@ use std::sync::Arc;
 use databend_common_catalog::table_context::TableContext;
 use databend_common_exception::Result;
 
-use crate::ColumnSet;
 use crate::optimizer::ir::Distribution;
 use crate::optimizer::ir::RelExpr;
 use crate::optimizer::ir::RelationalProperty;
@@ -27,45 +26,7 @@ use crate::optimizer::ir::Statistics;
 use crate::plans::Operator;
 use crate::plans::RelOp;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Limit {
-    pub before_exchange: bool,
-    pub limit: Option<usize>,
-    pub offset: usize,
-    pub lazy_columns: ColumnSet,
-}
-
-impl Limit {
-    pub fn derive_limit_stats(&self, stat_info: Arc<StatInfo>) -> Result<Arc<StatInfo>> {
-        let cardinality = match self.limit {
-            Some(limit) if (limit as f64) < stat_info.cardinality => limit as f64,
-            _ => stat_info.cardinality,
-        };
-        let precise_cardinality = match (self.limit, stat_info.statistics.precise_cardinality) {
-            (Some(limit), Some(pc)) => {
-                Some((pc.saturating_sub(self.offset as u64)).min(limit as u64))
-            }
-            _ => None,
-        };
-
-        Ok(Arc::new(StatInfo {
-            cardinality,
-            statistics: Statistics {
-                precise_cardinality,
-                column_stats: Default::default(),
-            },
-        }))
-    }
-
-    pub fn without_lazy_columns(&self) -> Limit {
-        Limit {
-            before_exchange: self.before_exchange,
-            limit: self.limit,
-            offset: self.offset,
-            lazy_columns: Default::default(),
-        }
-    }
-}
+pub use databend_common_sql_plans::Limit;
 
 impl Operator for Limit {
     fn rel_op(&self) -> RelOp {
@@ -101,6 +62,23 @@ impl Operator for Limit {
 
     fn derive_stats(&self, rel_expr: &RelExpr) -> Result<Arc<StatInfo>> {
         let stat_info = rel_expr.derive_cardinality_child(0)?;
-        self.derive_limit_stats(stat_info)
+        let cardinality = match self.limit {
+            Some(limit) if (limit as f64) < stat_info.cardinality => limit as f64,
+            _ => stat_info.cardinality,
+        };
+        let precise_cardinality = match (self.limit, stat_info.statistics.precise_cardinality) {
+            (Some(limit), Some(pc)) => {
+                Some((pc.saturating_sub(self.offset as u64)).min(limit as u64))
+            }
+            _ => None,
+        };
+
+        Ok(Arc::new(StatInfo {
+            cardinality,
+            statistics: Statistics {
+                precise_cardinality,
+                column_stats: Default::default(),
+            },
+        }))
     }
 }

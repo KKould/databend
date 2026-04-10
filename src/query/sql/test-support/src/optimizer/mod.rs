@@ -33,6 +33,7 @@ use databend_common_sql::ColumnEntry;
 use databend_common_sql::IndexType;
 use databend_common_sql::Metadata;
 use databend_common_sql::MetadataRef;
+use databend_common_sql::PlanFormatIndent;
 use databend_common_sql::Symbol;
 use databend_common_sql::optimizer::ir::SExpr;
 use databend_common_sql::optimizer::ir::SExprVisitor;

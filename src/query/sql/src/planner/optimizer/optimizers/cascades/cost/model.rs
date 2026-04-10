@@ -156,7 +156,8 @@ impl DefaultCostModel {
     }
 
     fn compute_cost_exchange(&self, memo: &Memo, m_expr: &MExpr) -> Result<Cost> {
-        let exchange: Exchange = (*m_expr.plan.clone()).clone().try_into()?;
+        let exchange: Exchange =
+            crate::plans::try_from_rel_operator((*m_expr.plan.clone()).clone())?;
         let group = memo.group(m_expr.group_index)?;
         let cost = match exchange {
             Exchange::NodeToNodeHash(_) | Exchange::GlobalHash(_) => {

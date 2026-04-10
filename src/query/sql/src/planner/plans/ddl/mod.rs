@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-mod dynamic_table;
-mod index;
-mod table;
-
 pub use databend_common_sql_plans::ddl::*;
-pub use dynamic_table::*;
-pub use index::*;
-pub use table::*;
+
+use crate::plans::Plan;
+
+pub type CreateTablePlan = databend_common_sql_plans::ddl::GenericCreateTablePlan<Plan>;
+pub type RefreshIndexPlan = databend_common_sql_plans::ddl::GenericRefreshIndexPlan<Plan>;

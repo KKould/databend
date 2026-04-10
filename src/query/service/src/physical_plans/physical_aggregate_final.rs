@@ -32,6 +32,7 @@ use databend_common_sql::executor::physical_plans::AggregateFunctionSignature;
 use databend_common_sql::executor::physical_plans::SortDesc;
 use databend_common_sql::optimizer::ir::SExpr;
 use databend_common_sql::plans::Aggregate;
+use databend_common_sql::plans::AggregateFunctionScalarSortDescExt;
 use databend_common_sql::plans::AggregateMode;
 use databend_common_sql::plans::ConstantTableScan;
 use databend_common_sql::plans::ScalarItem;
@@ -599,7 +600,7 @@ fn build_aggregate_function(
                 let sort_descs = agg
                     .sort_descs
                     .iter()
-                    .map(|desc| desc.try_into())
+                    .map(|desc| desc.try_into_sort_desc())
                     .collect::<Result<_>>()?;
                 Ok(AggregateFunctionDesc {
                     sig: AggregateFunctionSignature {

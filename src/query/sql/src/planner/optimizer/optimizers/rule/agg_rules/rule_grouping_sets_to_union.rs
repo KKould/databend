@@ -38,6 +38,7 @@ use crate::plans::EvalScalar;
 use crate::plans::MaterializedCTE;
 use crate::plans::MaterializedCTERef;
 use crate::plans::RelOp;
+use crate::plans::RelOperator;
 use crate::plans::Sequence;
 use crate::plans::UnionAll;
 use crate::plans::VisitorMut;
@@ -92,7 +93,8 @@ impl Rule for RuleGroupingSetsToUnion {
     }
 
     fn apply(&self, s_expr: &SExpr, state: &mut TransformResult) -> Result<()> {
-        let eval_scalar: EvalScalar = s_expr.plan().clone().try_into()?;
+        let eval_scalar: EvalScalar =
+            crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
         let agg: Aggregate = s_expr.child(0)?.plan().clone().try_into()?;
         if agg.mode != AggregateMode::Initial {
             return Ok(());
@@ -193,8 +195,12 @@ impl Rule for RuleGroupingSetsToUnion {
                         visitor.visit(&mut scalar.scalar)?;
                     }
 
-                    let agg_plan = SExpr::create_unary(agg, cte_consumer.clone());
-                    let eval_plan = SExpr::create_unary(eval_scalar, agg_plan);
+                    let agg_plan = SExpr::create_unary(
+                        Arc::new(RelOperator::Aggregate(agg)),
+                        cte_consumer.clone(),
+                    );
+                    let eval_plan =
+                        SExpr::create_unary(Arc::new(RelOperator::EvalScalar(eval_scalar)), agg_plan);
                     children.push(eval_plan);
                 }
 

@@ -35,6 +35,7 @@ use crate::plans::ScalarExpr;
 use crate::plans::SubqueryExpr;
 use crate::plans::Visitor;
 use crate::plans::VisitorMut;
+use crate::plans::WindowFuncTypeExt;
 use crate::plans::walk_expr_mut;
 
 impl Binder {

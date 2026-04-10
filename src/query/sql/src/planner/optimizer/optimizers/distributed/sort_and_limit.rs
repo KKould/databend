@@ -119,7 +119,7 @@ impl SortAndLimitPushDownOptimizer {
         let sort = s_expr.plan.as_sort().unwrap();
 
         let new_exchange = SExpr::create_unary(
-            Arc::new(Exchange::MergeSort.into()),
+            Arc::new(RelOperator::Exchange(Exchange::MergeSort)),
             SExpr::create_unary(
                 Arc::new(
                     Sort {
@@ -149,7 +149,7 @@ impl SortAndLimitPushDownOptimizer {
         }
 
         let exchange_sexpr = s_expr.child(0)?;
-        let mut limit: Limit = s_expr.plan().clone().try_into()?;
+        let mut limit: Limit = crate::plans::try_from_rel_operator(s_expr.plan().clone())?;
 
         if limit.limit.is_none() {
             if limit.offset != 0 {
