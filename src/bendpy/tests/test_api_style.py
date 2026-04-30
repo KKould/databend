@@ -61,3 +61,15 @@ def test_register_csv_local_path_allows_select_star(tmp_path):
     rows = conn.table("foods").fetchall()
     assert len(rows) == 2
     assert len(rows[0]) == 2
+
+
+def test_register_text_local_path_allows_select_star(tmp_path):
+    text_path = tmp_path / "foods.tsv"
+    text_path.write_text("1\tapple\n2\tbread\n")
+    conn = databend.SessionContext(data_path=str(tmp_path / "embedded"))
+
+    conn.register_text("foods_text", str(text_path))
+
+    rows = conn.table("foods_text").fetchall()
+    assert len(rows) == 2
+    assert len(rows[0]) == 2
