@@ -284,6 +284,385 @@ fn bitmap_from_arrow2(bencher: divan::Bencher, length: usize) {
     });
 }
 
+#[divan::bench_group(max_time = 1)]
+mod skew_hash_hot_key {
+    use std::cmp::Ordering;
+    use std::fmt;
+
+    use databend_common_expression::Scalar;
+    use databend_common_expression::ScalarRef;
+    use databend_common_expression::types::UInt64Type;
+    use databend_common_expression::types::number::NumberScalar;
+
+    use super::*;
+
+    #[derive(Clone, Copy, Debug)]
+    enum KeyKind {
+        UInt64,
+        String,
+    }
+
+    impl KeyKind {
+        fn as_str(self) -> &'static str {
+            match self {
+                KeyKind::UInt64 => "u64",
+                KeyKind::String => "str",
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    struct HotKeyCase {
+        key_kind: KeyKind,
+        rows: usize,
+        hot_key_count: usize,
+        hot_percent: usize,
+    }
+
+    impl fmt::Display for HotKeyCase {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(
+                f,
+                "{}_rows{}_keys{}_hot{}",
+                self.key_kind.as_str(),
+                self.rows,
+                self.hot_key_count,
+                self.hot_percent
+            )
+        }
+    }
+
+    const CASES: &[HotKeyCase] = &[
+        HotKeyCase {
+            key_kind: KeyKind::UInt64,
+            rows: 8192,
+            hot_key_count: 1,
+            hot_percent: 0,
+        },
+        HotKeyCase {
+            key_kind: KeyKind::UInt64,
+            rows: 8192,
+            hot_key_count: 8,
+            hot_percent: 50,
+        },
+        HotKeyCase {
+            key_kind: KeyKind::UInt64,
+            rows: 65536,
+            hot_key_count: 8,
+            hot_percent: 50,
+        },
+        HotKeyCase {
+            key_kind: KeyKind::UInt64,
+            rows: 65536,
+            hot_key_count: 8,
+            hot_percent: 100,
+        },
+        HotKeyCase {
+            key_kind: KeyKind::UInt64,
+            rows: 65536,
+            hot_key_count: 64,
+            hot_percent: 50,
+        },
+        HotKeyCase {
+            key_kind: KeyKind::String,
+            rows: 8192,
+            hot_key_count: 1,
+            hot_percent: 0,
+        },
+        HotKeyCase {
+            key_kind: KeyKind::String,
+            rows: 8192,
+            hot_key_count: 8,
+            hot_percent: 50,
+        },
+        HotKeyCase {
+            key_kind: KeyKind::String,
+            rows: 65536,
+            hot_key_count: 8,
+            hot_percent: 50,
+        },
+        HotKeyCase {
+            key_kind: KeyKind::String,
+            rows: 65536,
+            hot_key_count: 8,
+            hot_percent: 100,
+        },
+        HotKeyCase {
+            key_kind: KeyKind::String,
+            rows: 65536,
+            hot_key_count: 64,
+            hot_percent: 50,
+        },
+    ];
+
+    struct ScatterLayout {
+        scatter_size: usize,
+        node_partitions: Vec<(usize, usize)>,
+        bucket_count: usize,
+    }
+
+    struct BenchInput {
+        column: Column,
+        hot_keys: Vec<Scalar>,
+        hashes: Vec<u64>,
+        layout: ScatterLayout,
+        rows: usize,
+    }
+
+    impl BenchInput {
+        fn new(case: HotKeyCase) -> Self {
+            let hot_keys = build_hot_keys(case);
+            let column = build_column(case);
+            let hashes = (0..case.rows).map(hash_row).collect();
+
+            Self {
+                column,
+                hot_keys,
+                hashes,
+                layout: ScatterLayout {
+                    scatter_size: 16,
+                    node_partitions: vec![(0, 4), (4, 4), (8, 4), (12, 4)],
+                    bucket_count: 4,
+                },
+                rows: case.rows,
+            }
+        }
+    }
+
+    fn build_hot_keys(case: HotKeyCase) -> Vec<Scalar> {
+        match case.key_kind {
+            KeyKind::UInt64 => (0..case.hot_key_count)
+                .map(|value| Scalar::Number(NumberScalar::UInt64(value as u64)))
+                .collect(),
+            KeyKind::String => (0..case.hot_key_count)
+                .map(|value| Scalar::String(hot_string(value)))
+                .collect(),
+        }
+    }
+
+    fn build_column(case: HotKeyCase) -> Column {
+        match case.key_kind {
+            KeyKind::UInt64 => {
+                let values = (0..case.rows)
+                    .map(|row| {
+                        if is_hot_row(case, row) {
+                            (row % case.hot_key_count) as u64
+                        } else {
+                            (case.hot_key_count + row + 1) as u64
+                        }
+                    })
+                    .collect();
+                UInt64Type::from_data(values)
+            }
+            KeyKind::String => {
+                let values = (0..case.rows)
+                    .map(|row| {
+                        if is_hot_row(case, row) {
+                            hot_string(row % case.hot_key_count)
+                        } else {
+                            format!("cold_{row:08}")
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                StringType::from_data(values)
+            }
+        }
+    }
+
+    fn hot_string(value: usize) -> String {
+        format!("hot_{value:04}")
+    }
+
+    fn is_hot_row(case: HotKeyCase, row: usize) -> bool {
+        match case.hot_percent {
+            0 => false,
+            100 => true,
+            hot_percent => row % 100 < hot_percent,
+        }
+    }
+
+    fn hash_row(row: usize) -> u64 {
+        (row as u64)
+            .wrapping_mul(11_400_714_819_323_198_485)
+            .rotate_left(13)
+    }
+
+    fn is_hot_scalar_ref(hot_keys: &[Scalar], scalar: ScalarRef<'_>) -> bool {
+        if matches!(scalar, ScalarRef::Null) {
+            return false;
+        }
+
+        match hot_keys.binary_search_by(|hot_key| hot_key.as_ref().cmp(&scalar)) {
+            Ok(index) => hot_keys[index].as_ref().partial_cmp(&scalar) == Some(Ordering::Equal),
+            Err(_) => false,
+        }
+    }
+
+    fn is_hot_key(input: &BenchInput, row: usize) -> bool {
+        let scalar = unsafe { input.column.index_unchecked(row) };
+        is_hot_scalar_ref(&input.hot_keys, scalar)
+    }
+
+    fn hot_key_bitmap(input: &BenchInput) -> Bitmap {
+        Bitmap::from_trusted_len_iter((0..input.rows).map(|row| is_hot_key(input, row)))
+    }
+
+    fn normal_partition(layout: &ScatterLayout, hash: u64) -> u64 {
+        hash % layout.scatter_size as u64
+    }
+
+    fn skew_partition(layout: &ScatterLayout, hash: u64, salt: usize) -> u64 {
+        let node_count = layout.node_partitions.len();
+        let node_index = ((hash % node_count as u64) as usize + salt) % node_count;
+        let (partition_start, partition_count) = layout.node_partitions[node_index];
+        let local_partition = (hash % partition_count as u64) as usize;
+        (partition_start + local_partition) as u64
+    }
+
+    fn probe_indices_binary_search(input: &BenchInput) -> Vec<u64> {
+        let mut salt = 0;
+        (0..input.rows)
+            .map(|row| {
+                let hash = input.hashes[row];
+                if is_hot_key(input, row) {
+                    let partition = skew_partition(&input.layout, hash, salt);
+                    salt = (salt + 1) % input.layout.bucket_count;
+                    partition
+                } else {
+                    normal_partition(&input.layout, hash)
+                }
+            })
+            .collect()
+    }
+
+    fn probe_indices_bitmap(input: &BenchInput) -> Vec<u64> {
+        let hot_keys = hot_key_bitmap(input);
+        let hot_count = hot_keys.true_count();
+        let mut salt = 0;
+
+        if hot_count == 0 {
+            return input
+                .hashes
+                .iter()
+                .map(|hash| normal_partition(&input.layout, *hash))
+                .collect();
+        }
+
+        if hot_count == input.rows {
+            return input
+                .hashes
+                .iter()
+                .map(|hash| {
+                    let partition = skew_partition(&input.layout, *hash, salt);
+                    salt = (salt + 1) % input.layout.bucket_count;
+                    partition
+                })
+                .collect();
+        }
+
+        (0..input.rows)
+            .map(|row| {
+                let hash = input.hashes[row];
+                if hot_keys.get_bit(row) {
+                    let partition = skew_partition(&input.layout, hash, salt);
+                    salt = (salt + 1) % input.layout.bucket_count;
+                    partition
+                } else {
+                    normal_partition(&input.layout, hash)
+                }
+            })
+            .collect()
+    }
+
+    fn build_rows_binary_search(input: &BenchInput) -> Vec<Vec<u32>> {
+        let mut partition_rows = vec![Vec::<u32>::new(); input.layout.scatter_size];
+        for row in 0..input.rows {
+            let hash = input.hashes[row];
+            if is_hot_key(input, row) {
+                for salt in 0..input.layout.bucket_count {
+                    let target = skew_partition(&input.layout, hash, salt) as usize;
+                    partition_rows[target].push(row as u32);
+                }
+            } else {
+                let target = normal_partition(&input.layout, hash) as usize;
+                partition_rows[target].push(row as u32);
+            }
+        }
+        partition_rows
+    }
+
+    fn build_rows_bitmap(input: &BenchInput) -> Vec<Vec<u32>> {
+        let hot_keys = hot_key_bitmap(input);
+        let hot_count = hot_keys.true_count();
+        let mut partition_rows = vec![Vec::<u32>::new(); input.layout.scatter_size];
+
+        if hot_count == 0 {
+            for row in 0..input.rows {
+                let target = normal_partition(&input.layout, input.hashes[row]) as usize;
+                partition_rows[target].push(row as u32);
+            }
+            return partition_rows;
+        }
+
+        if hot_count == input.rows {
+            for row in 0..input.rows {
+                let hash = input.hashes[row];
+                for salt in 0..input.layout.bucket_count {
+                    let target = skew_partition(&input.layout, hash, salt) as usize;
+                    partition_rows[target].push(row as u32);
+                }
+            }
+            return partition_rows;
+        }
+
+        for row in 0..input.rows {
+            let hash = input.hashes[row];
+            if hot_keys.get_bit(row) {
+                for salt in 0..input.layout.bucket_count {
+                    let target = skew_partition(&input.layout, hash, salt) as usize;
+                    partition_rows[target].push(row as u32);
+                }
+            } else {
+                let target = normal_partition(&input.layout, hash) as usize;
+                partition_rows[target].push(row as u32);
+            }
+        }
+        partition_rows
+    }
+
+    #[divan::bench(args = CASES)]
+    fn probe_binary_search(bencher: divan::Bencher, case: HotKeyCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            divan::black_box(probe_indices_binary_search(divan::black_box(&input)));
+        });
+    }
+
+    #[divan::bench(args = CASES)]
+    fn probe_bitmap(bencher: divan::Bencher, case: HotKeyCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            divan::black_box(probe_indices_bitmap(divan::black_box(&input)));
+        });
+    }
+
+    #[divan::bench(args = CASES)]
+    fn build_binary_search(bencher: divan::Bencher, case: HotKeyCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            divan::black_box(build_rows_binary_search(divan::black_box(&input)));
+        });
+    }
+
+    #[divan::bench(args = CASES)]
+    fn build_bitmap(bencher: divan::Bencher, case: HotKeyCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            divan::black_box(build_rows_bitmap(divan::black_box(&input)));
+        });
+    }
+}
+
 fn generate_random_string_data(rng: &mut StdRng, length: usize) -> (Vec<String>, Vec<Vec<u8>>) {
     let iter_str: Vec<_> = (0..102400)
         .map(|_| {
