@@ -663,6 +663,404 @@ mod skew_hash_hot_key {
     }
 }
 
+#[divan::bench_group(max_time = 1)]
+mod skew_hash_vs_hash_shuffle {
+    use std::cmp::Ordering;
+    use std::fmt;
+
+    use databend_common_expression::Scalar;
+    use databend_common_expression::ScalarRef;
+    use databend_common_expression::types::UInt64Type;
+    use databend_common_expression::types::number::NumberScalar;
+
+    use super::*;
+
+    #[derive(Clone, Copy, Debug)]
+    enum KeyKind {
+        UInt64,
+        String,
+    }
+
+    impl KeyKind {
+        fn as_str(self) -> &'static str {
+            match self {
+                KeyKind::UInt64 => "u64",
+                KeyKind::String => "str",
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    struct ShuffleCase {
+        key_kind: KeyKind,
+        rows: usize,
+        hot_percent: usize,
+        payload_columns: usize,
+    }
+
+    impl fmt::Display for ShuffleCase {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(
+                f,
+                "{}_rows{}_hot{}_payload{}",
+                self.key_kind.as_str(),
+                self.rows,
+                self.hot_percent,
+                self.payload_columns
+            )
+        }
+    }
+
+    const HOT_KEY_COUNT: usize = 8;
+    const CASES: &[ShuffleCase] = &[
+        ShuffleCase {
+            key_kind: KeyKind::UInt64,
+            rows: 8192,
+            hot_percent: 0,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::UInt64,
+            rows: 8192,
+            hot_percent: 50,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::UInt64,
+            rows: 65536,
+            hot_percent: 0,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::UInt64,
+            rows: 65536,
+            hot_percent: 1,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::UInt64,
+            rows: 65536,
+            hot_percent: 50,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::UInt64,
+            rows: 65536,
+            hot_percent: 50,
+            payload_columns: 8,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::UInt64,
+            rows: 65536,
+            hot_percent: 100,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::String,
+            rows: 8192,
+            hot_percent: 0,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::String,
+            rows: 8192,
+            hot_percent: 50,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::String,
+            rows: 65536,
+            hot_percent: 0,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::String,
+            rows: 65536,
+            hot_percent: 1,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::String,
+            rows: 65536,
+            hot_percent: 50,
+            payload_columns: 1,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::String,
+            rows: 65536,
+            hot_percent: 50,
+            payload_columns: 8,
+        },
+        ShuffleCase {
+            key_kind: KeyKind::String,
+            rows: 65536,
+            hot_percent: 100,
+            payload_columns: 1,
+        },
+    ];
+
+    struct ScatterLayout {
+        scatter_size: usize,
+        node_partitions: Vec<(usize, usize)>,
+        bucket_count: usize,
+    }
+
+    struct BenchInput {
+        key_column: Column,
+        hot_keys: Vec<Scalar>,
+        hashes: Vec<u64>,
+        block: DataBlock,
+        layout: ScatterLayout,
+        rows: usize,
+    }
+
+    impl BenchInput {
+        fn new(case: ShuffleCase) -> Self {
+            let key_column = build_key_column(case);
+            let mut columns = Vec::with_capacity(case.payload_columns + 1);
+            columns.push(key_column.clone());
+            columns
+                .extend((0..case.payload_columns).map(|column| build_payload_column(case, column)));
+
+            Self {
+                key_column,
+                hot_keys: build_hot_keys(case.key_kind),
+                // Precompute hashes so this benchmark isolates shuffle routing and row movement
+                // from expression evaluation and siphash cost.
+                hashes: (0..case.rows).map(hash_row).collect(),
+                block: DataBlock::new_from_columns(columns),
+                layout: ScatterLayout {
+                    scatter_size: 16,
+                    node_partitions: vec![(0, 4), (4, 4), (8, 4), (12, 4)],
+                    bucket_count: 4,
+                },
+                rows: case.rows,
+            }
+        }
+    }
+
+    fn build_hot_keys(key_kind: KeyKind) -> Vec<Scalar> {
+        match key_kind {
+            KeyKind::UInt64 => (0..HOT_KEY_COUNT)
+                .map(|value| Scalar::Number(NumberScalar::UInt64(value as u64)))
+                .collect(),
+            KeyKind::String => (0..HOT_KEY_COUNT)
+                .map(|value| Scalar::String(hot_string(value)))
+                .collect(),
+        }
+    }
+
+    fn build_key_column(case: ShuffleCase) -> Column {
+        match case.key_kind {
+            KeyKind::UInt64 => {
+                let values = (0..case.rows)
+                    .map(|row| {
+                        if is_hot_row(case, row) {
+                            (row % HOT_KEY_COUNT) as u64
+                        } else {
+                            (HOT_KEY_COUNT + row + 1) as u64
+                        }
+                    })
+                    .collect();
+                UInt64Type::from_data(values)
+            }
+            KeyKind::String => {
+                let values = (0..case.rows)
+                    .map(|row| {
+                        if is_hot_row(case, row) {
+                            hot_string(row % HOT_KEY_COUNT)
+                        } else {
+                            format!("cold_{row:08}")
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                StringType::from_data(values)
+            }
+        }
+    }
+
+    fn build_payload_column(case: ShuffleCase, column: usize) -> Column {
+        let values = (0..case.rows)
+            .map(|row| ((row as u64) << 16) ^ column as u64)
+            .collect();
+        UInt64Type::from_data(values)
+    }
+
+    fn hot_string(value: usize) -> String {
+        format!("hot_{value:04}")
+    }
+
+    fn is_hot_row(case: ShuffleCase, row: usize) -> bool {
+        match case.hot_percent {
+            0 => false,
+            100 => true,
+            hot_percent => row % 100 < hot_percent,
+        }
+    }
+
+    fn hash_row(row: usize) -> u64 {
+        (row as u64)
+            .wrapping_mul(11_400_714_819_323_198_485)
+            .rotate_left(13)
+    }
+
+    fn is_hot_scalar_ref(hot_keys: &[Scalar], scalar: ScalarRef<'_>) -> bool {
+        if matches!(scalar, ScalarRef::Null) {
+            return false;
+        }
+
+        match hot_keys.binary_search_by(|hot_key| hot_key.as_ref().cmp(&scalar)) {
+            Ok(index) => hot_keys[index].as_ref().partial_cmp(&scalar) == Some(Ordering::Equal),
+            Err(_) => false,
+        }
+    }
+
+    fn is_hot_key(input: &BenchInput, row: usize) -> bool {
+        let scalar = unsafe { input.key_column.index_unchecked(row) };
+        is_hot_scalar_ref(&input.hot_keys, scalar)
+    }
+
+    fn normal_partition(layout: &ScatterLayout, hash: u64) -> u64 {
+        hash % layout.scatter_size as u64
+    }
+
+    fn skew_partition(layout: &ScatterLayout, hash: u64, salt: usize) -> u64 {
+        let node_count = layout.node_partitions.len();
+        let node_index = ((hash % node_count as u64) as usize + salt) % node_count;
+        let (partition_start, partition_count) = layout.node_partitions[node_index];
+        let local_partition = (hash % partition_count as u64) as usize;
+        (partition_start + local_partition) as u64
+    }
+
+    fn hash_indices(input: &BenchInput) -> Vec<u64> {
+        input
+            .hashes
+            .iter()
+            .map(|hash| normal_partition(&input.layout, *hash))
+            .collect()
+    }
+
+    fn skew_probe_indices(input: &BenchInput) -> Vec<u64> {
+        let mut salt = 0;
+        (0..input.rows)
+            .map(|row| {
+                let hash = input.hashes[row];
+                if is_hot_key(input, row) {
+                    // Use deterministic rotation to keep the benchmark stable. The production
+                    // random salt is expected to add more overhead, not less.
+                    let partition = skew_partition(&input.layout, hash, salt);
+                    salt = (salt + 1) % input.layout.bucket_count;
+                    partition
+                } else {
+                    normal_partition(&input.layout, hash)
+                }
+            })
+            .collect()
+    }
+
+    fn hash_partition_rows(input: &BenchInput) -> Vec<Vec<u32>> {
+        let mut partition_rows = vec![Vec::<u32>::new(); input.layout.scatter_size];
+        for row in 0..input.rows {
+            let target = normal_partition(&input.layout, input.hashes[row]) as usize;
+            partition_rows[target].push(row as u32);
+        }
+        partition_rows
+    }
+
+    fn skew_build_partition_rows(input: &BenchInput) -> Vec<Vec<u32>> {
+        let mut partition_rows = vec![Vec::<u32>::new(); input.layout.scatter_size];
+        for row in 0..input.rows {
+            let hash = input.hashes[row];
+            if is_hot_key(input, row) {
+                for salt in 0..input.layout.bucket_count {
+                    let target = skew_partition(&input.layout, hash, salt) as usize;
+                    partition_rows[target].push(row as u32);
+                }
+            } else {
+                let target = normal_partition(&input.layout, hash) as usize;
+                partition_rows[target].push(row as u32);
+            }
+        }
+        partition_rows
+    }
+
+    fn take_partitions(input: &BenchInput, partition_rows: Vec<Vec<u32>>) -> Vec<DataBlock> {
+        partition_rows
+            .into_iter()
+            .map(|rows| {
+                input
+                    .block
+                    .take_with_optimize_size(rows.as_slice())
+                    .unwrap()
+            })
+            .collect()
+    }
+
+    #[divan::bench(args = CASES)]
+    fn route_hash(bencher: divan::Bencher, case: ShuffleCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            divan::black_box(hash_indices(divan::black_box(&input)));
+        });
+    }
+
+    #[divan::bench(args = CASES)]
+    fn route_skew_probe(bencher: divan::Bencher, case: ShuffleCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            divan::black_box(skew_probe_indices(divan::black_box(&input)));
+        });
+    }
+
+    #[divan::bench(args = CASES)]
+    fn route_skew_build(bencher: divan::Bencher, case: ShuffleCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            divan::black_box(skew_build_partition_rows(divan::black_box(&input)));
+        });
+    }
+
+    #[divan::bench(args = CASES)]
+    fn scatter_hash(bencher: divan::Bencher, case: ShuffleCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            let indices = hash_indices(divan::black_box(&input));
+            divan::black_box(
+                DataBlock::scatter(&input.block, &indices, input.layout.scatter_size).unwrap(),
+            );
+        });
+    }
+
+    #[divan::bench(args = CASES)]
+    fn scatter_skew_probe(bencher: divan::Bencher, case: ShuffleCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            let indices = skew_probe_indices(divan::black_box(&input));
+            divan::black_box(
+                DataBlock::scatter(&input.block, &indices, input.layout.scatter_size).unwrap(),
+            );
+        });
+    }
+
+    #[divan::bench(args = CASES)]
+    fn scatter_skew_build(bencher: divan::Bencher, case: ShuffleCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            let partition_rows = skew_build_partition_rows(divan::black_box(&input));
+            divan::black_box(take_partitions(&input, partition_rows));
+        });
+    }
+
+    #[divan::bench(args = CASES)]
+    fn scatter_hash_take(bencher: divan::Bencher, case: ShuffleCase) {
+        let input = BenchInput::new(case);
+        bencher.bench_local(|| {
+            let partition_rows = hash_partition_rows(divan::black_box(&input));
+            divan::black_box(take_partitions(&input, partition_rows));
+        });
+    }
+}
+
 fn generate_random_string_data(rng: &mut StdRng, length: usize) -> (Vec<String>, Vec<Vec<u8>>) {
     let iter_str: Vec<_> = (0..102400)
         .map(|_| {
